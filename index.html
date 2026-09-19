@@ -1,0 +1,966 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="theme-color" content="#0b1220">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<title>Controle Financeiro Residencial</title>
+<style>
+:root{
+  --bg:#0b1220;--panel:#111b2e;--panel2:#17233a;--line:#263653;
+  --text:#eef4ff;--muted:#9fb0c9;--primary:#3b82f6;--primary2:#2563eb;
+  --green:#22c55e;--yellow:#f59e0b;--red:#ef4444;--cyan:#06b6d4;
+  --shadow:0 12px 30px rgba(0,0,0,.22);--radius:16px;
+}
+*{box-sizing:border-box}
+body{margin:0;background:linear-gradient(135deg,#08101d,#0d1728 50%,#101b30);color:var(--text);font-family:Inter,Segoe UI,Arial,sans-serif}
+button,input,select,textarea{font:inherit}
+button{cursor:pointer}
+.app{max-width:1500px;margin:auto;padding:22px}
+header{display:flex;justify-content:space-between;align-items:center;gap:15px;margin-bottom:20px}
+.brand h1{margin:0;font-size:28px}.brand p{margin:5px 0 0;color:var(--muted)}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+.btn{border:1px solid var(--line);background:var(--panel);color:var(--text);padding:10px 14px;border-radius:10px}
+.btn:hover{filter:brightness(1.12)}.btn.primary{background:var(--primary);border-color:var(--primary)}
+.btn.danger{background:#3a151b;border-color:#6d232d;color:#ffb5bc}
+.btn.green{background:#123b25;border-color:#1e6b3b;color:#a7f3c0}
+.grid{display:grid;gap:14px}.cards{grid-template-columns:repeat(5,minmax(0,1fr))}
+.card,.panel{background:rgba(17,27,46,.94);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+.card{padding:18px}.card .label{color:var(--muted);font-size:13px}.card .value{font-size:25px;font-weight:800;margin-top:7px}.positive{color:var(--green)}.negative{color:var(--red)}.warning{color:var(--yellow)}
+.dashboard{display:grid;grid-template-columns:1.25fr .75fr;gap:14px;margin-top:14px}
+.panel{padding:18px}.panel h2{font-size:17px;margin:0 0 14px}
+.chartbox{height:330px;position:relative}.chartbox canvas{width:100%;height:100%}
+.legend{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}.legend span{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:5px}.dot{width:9px;height:9px;border-radius:50%}
+.tabs{display:flex;gap:7px;flex-wrap:wrap;margin:18px 0 12px}.tab{padding:10px 15px;border:1px solid var(--line);background:var(--panel);border-radius:10px;color:var(--muted)}.tab.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+.section{display:none}.section.active{display:block}
+.formgrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:11px}.field{display:flex;flex-direction:column;gap:6px}.field label{font-size:12px;color:var(--muted);font-weight:600}.field input,.field select,.field textarea{width:100%;padding:10px 11px;border:1px solid var(--line);border-radius:9px;background:#0b1527;color:var(--text);outline:none}.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--primary)}.span2{grid-column:span 2}.span4{grid-column:1/-1}
+.form-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:13px}
+.tablewrap{overflow:auto;margin-top:15px}.history-scroll{height:420px;max-height:420px;overflow-y:auto;overflow-x:auto;border:1px solid var(--line);border-radius:10px;display:block}.history-scroll .table{margin:0;width:100%;min-width:980px}.history-scroll::-webkit-scrollbar{width:10px;height:10px}.history-scroll::-webkit-scrollbar-thumb{background:#40516e;border-radius:10px}.history-scroll::-webkit-scrollbar-track{background:#0b1527}.history-scroll .table{margin:0}.history-scroll thead th{position:sticky;top:0;z-index:3}.table{width:100%;border-collapse:collapse;min-width:980px}.table th,.table td{padding:11px 10px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}.table th{font-size:12px;color:var(--muted);position:sticky;top:0;background:var(--panel);z-index:1}.table td{font-size:13px}.pill{padding:4px 8px;border-radius:20px;font-size:11px;font-weight:700;display:inline-block}.pago{background:#123b25;color:#9af0b7}.pendente{background:#402f0e;color:#ffd98a}.vencido{background:#48181e;color:#ffadb5}.actions-cell{display:flex;gap:5px}.iconbtn{border:1px solid var(--line);background:#0c1729;color:var(--text);border-radius:7px;padding:5px 8px}
+.filters{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:9px;margin-bottom:10px}.small{font-size:12px;color:var(--muted)}.hidden-field{display:none!important}
+.alerts{display:grid;gap:8px}.alert{padding:11px 12px;border-radius:10px;border:1px solid var(--line);background:#0d182a}.alert strong{display:block;margin-bottom:3px}.alert.red{border-color:#6d232d}.alert.yellow{border-color:#6d521d}.alert.green{border-color:#205d38}
+.budget-row{margin:12px 0}.budget-head{display:flex;justify-content:space-between;font-size:12px;margin-bottom:5px}.bar{height:9px;border-radius:10px;background:#263653;overflow:hidden}.bar i{display:block;height:100%;border-radius:10px;background:var(--primary)}
+.category-list{display:grid;gap:9px}.cat{display:grid;grid-template-columns:1fr 90px 90px;align-items:center;gap:8px}.cat .name{font-size:13px}.cat .amount{text-align:right;font-weight:700;font-size:13px}
+.empty{text-align:center;color:var(--muted);padding:35px}.footer{text-align:center;color:#6f819d;font-size:11px;margin:25px 0 5px}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center;padding:15px;z-index:10}.modal.open{display:flex}.modalbox{background:var(--panel);border:1px solid var(--line);border-radius:16px;width:min(620px,100%);padding:20px}.modalhead{display:flex;justify-content:space-between;align-items:center}.close{background:none;border:0;color:var(--muted);font-size:24px}
+@media(max-width:1050px){.cards{grid-template-columns:repeat(3,1fr)}.dashboard{grid-template-columns:1fr}.formgrid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:650px){.app{padding:12px}.cards{grid-template-columns:repeat(2,1fr)}.formgrid,.filters{grid-template-columns:1fr}.span2{grid-column:auto}.card .value{font-size:20px}header{align-items:flex-start;flex-direction:column}}
+</style>
+
+<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+<style>
+.scan-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.scanner{background:#08101d;border:1px solid var(--line);border-radius:14px;overflow:hidden;min-height:290px}
+#reader{width:100%;min-height:290px}
+.scan-result{background:#0b1527;border:1px solid var(--line);border-radius:12px;padding:15px}
+.codebox{font-family:Consolas,monospace;font-size:13px;word-break:break-all;background:#08101d;padding:10px;border-radius:8px;border:1px solid var(--line)}
+.scan-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+@media(max-width:800px){.scan-grid{grid-template-columns:1fr}}
+</style>
+
+<style>
+#loginScreen{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;background:radial-gradient(circle at top,#172b4d,#08101d 60%);color:var(--text)}
+.auth-screen{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;background:radial-gradient(circle at top,#172b4d,#08101d 60%);color:var(--text)}
+.login-box{width:min(430px,100%);background:rgba(17,27,46,.98);border:1px solid var(--line);border-radius:22px;padding:30px;box-shadow:0 25px 70px rgba(0,0,0,.45)}
+.login-logo{width:70px;height:70px;border-radius:18px;background:linear-gradient(135deg,#3b82f6,#1d4ed8);display:flex;align-items:center;justify-content:center;font-size:34px;margin:0 auto 18px}
+.login-box h1{text-align:center;margin:0 0 7px;font-size:25px}.login-box p{text-align:center;color:var(--muted);margin:0 0 22px}
+.login-error{display:none;background:#48181e;border:1px solid #6d232d;color:#ffb5bc;border-radius:10px;padding:10px;margin:10px 0;font-size:13px}
+.login-security{font-size:11px;color:#6f819d;text-align:center;margin-top:18px;line-height:1.5}
+.user-menu{position:relative}.user-name{color:#9fb0c9;font-size:12px;margin-right:4px}
+.admin-panel{display:none}
+.locked{filter:none}
+</style>
+</head>
+<body>
+<div id="loginScreen" class="auth-screen">
+  <div class="login-box">
+    <div class="login-logo">🔐</div>
+    <h1>Controle Financeiro</h1>
+    <p>Acesso protegido</p>
+
+    <form id="loginForm" onsubmit="fazerLogin(event); return false;">
+      <div class="field">
+        <label>Usuário</label>
+        <input id="loginCPF" inputmode="numeric" maxlength="14" autocomplete="username" required placeholder="Digite seu CPF">
+      </div>
+      <div class="field" style="margin-top:12px">
+        <label>Senha</label>
+        <input id="loginPass" type="password" autocomplete="current-password" required placeholder="Digite sua senha">
+      </div>
+      <div id="loginError" class="login-error"></div>
+      <button type="submit" class="btn primary" style="width:100%;margin-top:14px">Entrar</button>
+    </form>
+
+    <button type="button" id="btnCadastro" class="btn" style="width:100%;margin-top:9px" onclick="abrirCadastro(); return false;">＋ Cadastrar novo usuário</button>
+    <div class="login-security">No login serão utilizados somente CPF e senha.</div>
+  </div>
+</div>
+
+<div id="cadastroScreen" class="auth-screen" style="display:none">
+  <div class="login-box">
+    <div class="login-logo">👤</div>
+    <h1>Novo usuário</h1>
+    <p>Cadastre seus dados para acessar o sistema</p>
+
+    <form id="cadastroForm" onsubmit="cadastrarUsuario(event); return false;">
+      <div class="field">
+        <label>CPF</label>
+        <input id="cadCPF" inputmode="numeric" maxlength="14" autocomplete="off" required placeholder="000.000.000-00">
+      </div>
+      <div class="field" style="margin-top:12px">
+        <label>Nome completo</label>
+        <input id="cadNome" maxlength="80" autocomplete="name" required placeholder="Digite seu nome completo">
+      </div>
+      <div class="field" style="margin-top:12px">
+        <label>Senha</label>
+        <input id="cadPass" type="password" minlength="6" autocomplete="new-password" required placeholder="Mínimo de 6 caracteres">
+      </div>
+      <div id="cadError" class="login-error"></div>
+      <button type="submit" class="btn primary" style="width:100%;margin-top:14px">Cadastrar</button>
+      <button type="button" class="btn" style="width:100%;margin-top:9px" onclick="fecharCadastro()">← Voltar para o login</button>
+    </form>
+    <div class="login-security">Depois do cadastro, o login será feito usando somente o CPF e a senha.</div>
+  </div>
+</div>
+<div class="app">
+<header>
+  <div class="brand"><h1>Controle Financeiro Residencial</h1><p>Organize receitas, despesas, vencimentos, cartões e orçamento da casa.</p></div>
+  <div class="actions"><span class="user-name" id="currentUser"></span><button class="btn" onclick="bloquearApp()">🔒 Bloquear</button><button class="btn green" onclick="exportar()">Exportar backup</button>
+    <button class="btn" onclick="document.getElementById('arquivo').click()">Importar backup</button>
+    <button class="btn danger" onclick="limparTudo()">Apagar tudo</button>
+    <input id="arquivo" type="file" accept=".json" hidden onchange="importar(this)">
+  </div>
+</header>
+
+<div class="grid cards">
+  <div class="card"><div class="label">Saldo disponível</div><div id="kSaldo" class="value">R$ 0,00</div></div>
+  <div class="card"><div class="label">Receitas</div><div id="kReceita" class="value positive">R$ 0,00</div></div>
+  <div class="card"><div class="label">Despesas</div><div id="kDespesa" class="value negative">R$ 0,00</div></div>
+  <div class="card"><div class="label">Em aberto</div><div id="kAberto" class="value warning">R$ 0,00</div></div>
+  <div class="card"><div class="label">Contas vencidas</div><div id="kVencidas" class="value negative">0</div></div>
+</div>
+
+<div class="dashboard">
+  <div class="panel">
+    <h2>Onde o dinheiro está sendo gasto?</h2>
+    <div class="chartbox"><canvas id="pie"></canvas></div>
+    <div id="legend" class="legend"></div>
+  </div>
+  <div class="panel">
+    <h2>Resumo do mês selecionado</h2>
+    <div id="monthSummary"></div>
+    <h2 style="margin-top:20px">Próximos vencimentos</h2>
+    <div id="alerts" class="alerts"></div>
+  </div>
+</div>
+
+<div class="tabs">
+ <button class="tab active" data-tab="lancamentos">Lançamentos</button>
+ <button class="tab" data-tab="scanner">📷 Ler boleto</button>
+ <button class="tab" data-tab="dashboard">Análise</button>
+ <button class="tab" data-tab="orcamento">Orçamento</button>
+ <button class="tab" data-tab="recorrentes">Recorrentes</button>
+ <button class="tab" data-tab="config">Configurações</button>
+ <button class="tab" data-tab="seguranca">🔐 Segurança</button>
+</div>
+
+<section id="lancamentos" class="section active">
+<div class="panel">
+<h2 id="formTitle">Adicionar lançamento</h2>
+<form id="form">
+<input type="hidden" id="editId">
+<div class="formgrid">
+ <div class="field"><label>Tipo</label><select id="tipo"><option value="despesa">Despesa</option><option value="receita">Receita</option></select></div>
+ <div class="field"><label id="descricaoLabel">Descrição *</label><input id="descricao" required placeholder="Ex.: Supermercado"></div>
+ <div class="field"><label id="categoriaLabel">Categoria da despesa</label><select id="categoria"></select></div>
+ <div class="field"><label>Valor *</label><input id="valor" required type="number" min="0" step="0.01" placeholder="0,00"></div>
+ <div class="field"><label>Data do lançamento</label><input id="data" type="date"></div>
+ <div id="vencimentoField" class="field"><label id="vencimentoLabel">Data de vencimento</label><input id="vencimento" type="date"></div>
+ <div class="field"><label id="pagamentoLabel">Data de pagamento</label><input id="pagamento" type="date"><span id="pagamentoHint" class="small"></span></div>
+ <div class="field"><label id="statusLabel">Status da despesa</label><select id="status"><option value="pendente">Pendente</option><option value="pago">Pago</option></select></div>
+ <div class="field"><label id="formaLabel">Forma de pagamento</label><select id="forma"><option>Pix</option><option>Débito</option><option>Crédito</option><option>Dinheiro</option><option>Boleto</option><option>Transferência</option><option>Outro</option></select></div>
+ <div class="field"><label id="contaLabel">Conta/Cartão</label><input id="conta" placeholder="Ex.: Nubank / Banco / Dinheiro"></div>
+ <div class="field span2"><label>Observação</label><textarea id="obs" rows="2" placeholder="Detalhes do lançamento..."></textarea></div>
+</div>
+<div class="form-actions"><button type="button" class="btn" onclick="resetForm()">Limpar</button><button class="btn primary">Salvar lançamento</button></div>
+</form>
+</div>
+
+<div class="panel" style="margin-top:14px">
+<h2>Histórico financeiro <span id="historicoContador" class="small"></span></h2>
+<div class="filters">
+ <input id="busca" class="field" placeholder="Pesquisar descrição..." oninput="render()">
+ <select id="filtroTipo" onchange="render()"><option value="">Todos os tipos</option><option value="despesa">Despesas</option><option value="receita">Receitas</option></select>
+ <select id="filtroStatus" onchange="render()"><option value="">Todos os status</option><option value="pendente">Pendentes</option><option value="pago">Pagos</option><option value="vencido">Vencidos</option></select>
+ <input id="filtroMes" type="month" onchange="render()">
+</div>
+<div class="tablewrap history-scroll"><table class="table"><thead><tr><th>Tipo</th><th>Descrição</th><th>Categoria</th><th>Valor</th><th>Vencimento</th><th>Pagamento</th><th>Status</th><th>Forma</th><th>Ações</th></tr></thead><tbody id="tbody"></tbody></table></div>
+</div>
+</section>
+
+
+<section id="scanner" class="section">
+<div class="panel">
+<h2>📷 Leitor de código de barras / QR Code</h2>
+<p class="small">Aponte a câmera para o código do boleto. O sistema tentará identificar o código e preencher os dados disponíveis.</p>
+
+<div class="scan-grid">
+  <div class="scanner"><div id="reader"></div></div>
+  <div class="scan-result">
+    <h2 style="margin-top:0">Resultado da leitura</h2>
+    <div id="scanStatus" class="alert">Aguardando leitura...</div>
+    <div class="field" style="margin-top:10px">
+      <label>Código / linha digitável</label>
+      <div id="codigoLido" class="codebox">Nenhum código lido.</div>
+    </div>
+
+    <div class="formgrid" style="margin-top:12px">
+      <div class="field"><label>Descrição</label><input id="scanDescricao" placeholder="Ex.: Conta de energia"></div>
+      <div class="field"><label>Valor</label><input id="scanValor" type="number" min="0" step=".01" placeholder="0,00"></div>
+      <div class="field"><label>Vencimento</label><input id="scanVencimento" type="date"></div>
+      <div class="field"><label>Categoria</label><select id="scanCategoria"></select></div>
+    </div>
+
+    <div class="scan-actions">
+      <button class="btn primary" onclick="adicionarContaEscaneada()">Adicionar ao financeiro</button>
+      <button class="btn" onclick="copiarCodigo()">Copiar código</button>
+      <button class="btn danger" onclick="pararScanner()">Parar câmera</button>
+    </div>
+    <p class="small" style="margin-top:12px">
+      Observação: a leitura identifica o conteúdo do código. Para consultar automaticamente uma
+      cobrança em um banco/concessionária e obter dados que não estejam codificados, será necessária
+      uma integração externa autorizada.
+    </p>
+  </div>
+</div>
+</div>
+</section>
+
+<section id="dashboard" class="section">
+<div class="panel">
+<h2>Análise detalhada</h2>
+<div class="formgrid">
+ <div class="field"><label>Mês para análise</label><input id="analiseMes" type="month" onchange="renderAnalise()"></div>
+ <div class="field"><label>Meta de economia</label><input id="metaEconomia" type="number" min="0" step=".01" oninput="saveConfig();renderAnalise()"></div>
+</div>
+<div id="analise"></div>
+</div>
+</section>
+
+<section id="orcamento" class="section">
+<div class="panel">
+<h2>Orçamento por categoria</h2>
+<p class="small">Defina quanto pretende gastar por mês em cada categoria. O sistema compara automaticamente com os gastos registrados.</p>
+<div id="orcamentoList"></div>
+</div>
+</section>
+
+<section id="recorrentes" class="section">
+<div class="panel">
+<h2>Despesas recorrentes</h2>
+<p class="small">Cadastre contas fixas para lembrar dos próximos vencimentos. Elas não são lançadas automaticamente no histórico; use "Gerar lançamento" quando desejar.</p>
+<form id="recForm">
+<div class="formgrid">
+ <div class="field"><label>Descrição *</label><input id="rDesc" required placeholder="Ex.: Aluguel"></div>
+ <div class="field"><label>Categoria</label><select id="rCat"></select></div>
+ <div class="field"><label>Valor</label><input id="rValor" type="number" min="0" step=".01" required></div>
+ <div class="field"><label>Dia do vencimento</label><input id="rDia" type="number" min="1" max="31" required></div>
+ <div class="field"><label>Forma</label><select id="rForma"><option>Pix</option><option>Boleto</option><option>Débito</option><option>Crédito</option><option>Dinheiro</option><option>Outro</option></select></div>
+</div>
+<div class="form-actions"><button class="btn primary">Cadastrar recorrente</button></div>
+</form>
+<div id="recList" class="tablewrap"></div>
+</div>
+</section>
+
+<section id="config" class="section">
+<div class="panel">
+<h2>Configurações</h2>
+<div class="formgrid">
+ <div class="field"><label>Nome da residência/família</label><input id="nomeCasa" oninput="saveConfig()"></div>
+ <div class="field"><label>Limite de alerta (%)</label><input id="limiteAlerta" type="number" min="1" max="100" oninput="saveConfig()"></div>
+ <div class="field"><label>Categoria padrão</label><select id="catPadrao"></select></div>
+</div>
+<p class="small" style="margin-top:15px">Os dados ficam salvos neste navegador através do armazenamento local. Faça exportações de backup regularmente.</p>
+</div>
+</section>
+
+
+<section id="seguranca" class="section">
+<div class="panel">
+<h2>🔐 Segurança e usuários</h2>
+<p class="small">Gerencie o acesso ao aplicativo. A senha não é exibida e é armazenada como hash local.</p>
+<div class="formgrid">
+ <div class="field"><label>Usuário atual</label><input id="secUser" disabled></div>
+ <div class="field"><label>Nova senha</label><input id="novaSenha" type="password" minlength="6" placeholder="Mínimo de 6 caracteres"></div>
+ <div class="field"><label>Confirmar nova senha</label><input id="confSenha" type="password" minlength="6"></div>
+ <div class="field"><label>Bloqueio automático (minutos)</label><input id="autoLock" type="number" min="0" max="240" step="1"></div>
+</div>
+<div class="form-actions">
+ <button class="btn" onclick="salvarAutoLock()">Salvar bloqueio</button>
+ <button class="btn primary" onclick="alterarSenha()">Alterar senha</button>
+</div>
+<div class="alert yellow" style="margin-top:15px">
+<strong>Importante</strong>
+Esta proteção é adequada para a versão local/PWA. Quando transformarmos o sistema em APK, podemos migrar para armazenamento seguro do sistema e biometria.
+</div>
+</div>
+</section>
+
+<div class="footer">Controle Financeiro Residencial • dados armazenados localmente neste dispositivo</div>
+</div>
+
+<script>
+const KEY="financeiro_residencial_v1";
+const CATS=["Moradia","Alimentação","Supermercado","Transporte","Energia","Água","Internet/Telefone","Saúde","Educação","Lazer","Compras","Impostos","Seguros","Assinaturas","Pets","Filhos","Manutenção","Dívidas","Investimentos","Outros"];
+const RECEITA_CATS=["Salário","Adiantamento","Hora extra","Serviço/Freelance","Venda","Comissão","Benefício","Aluguel recebido","Rendimento/Investimento","Reembolso","Pensão/Recebimento","Outros"];
+let db=JSON.parse(localStorage.getItem(KEY)||"null")||{lancamentos:[],recorrentes:[],orcamento:{},config:{nomeCasa:"Minha Residência",limiteAlerta:80,catPadrao:"Outros"}};
+function save(){localStorage.setItem(KEY,JSON.stringify(db));}
+function money(v){return Number(v||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});}
+function isoToday(){return new Date().toISOString().slice(0,10)}
+function monthNow(){return isoToday().slice(0,7)}
+function fmtDate(x){if(!x)return "—";let p=x.split("-");return p.length===3?p[2]+"/"+p[1]+"/"+p[0]:x}
+function esc(s){return String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]))}
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
+function preencherSelect(id,lista,valorAtual=""){
+  const e=document.getElementById(id);
+  if(!e)return;
+  e.innerHTML=lista.map(c=>`<option>${c}</option>`).join("");
+  if(valorAtual && lista.includes(valorAtual)) e.value=valorAtual;
+}
+function fillCats(){
+  preencherSelect("categoria",CATS,db.config.catPadrao||"Outros");
+  preencherSelect("rCat",CATS,db.config.catPadrao||"Outros");
+  preencherSelect("catPadrao",CATS,db.config.catPadrao||"Outros");
+}
+
+function atualizarTratamentoTipo(manterValores=false){
+  const tipoEl=document.getElementById("tipo");
+  const receita=tipoEl.value==="receita";
+  const cat=document.getElementById("categoria");
+  const catAtual=cat.value;
+
+  // Receita possui categorias próprias, começando por SALÁRIO.
+  if(receita){
+    preencherSelect(
+      "categoria",
+      RECEITA_CATS,
+      RECEITA_CATS.includes(catAtual) ? catAtual : "Salário"
+    );
+  }else{
+    preencherSelect(
+      "categoria",
+      CATS,
+      CATS.includes(catAtual) ? catAtual : (db.config.catPadrao||"Outros")
+    );
+  }
+
+  // Receita não possui vencimento.
+  const vencField=document.getElementById("vencimentoField");
+  const venc=document.getElementById("vencimento");
+  if(vencField){
+    vencField.style.display=receita ? "none" : "";
+    venc.value=receita ? "" : venc.value;
+  }
+
+  document.getElementById("descricaoLabel").textContent =
+    receita ? "Descrição da receita *" : "Descrição da despesa *";
+  document.getElementById("descricao").placeholder =
+    receita ? "Ex.: Salário" : "Ex.: Supermercado";
+
+  document.getElementById("categoriaLabel").textContent =
+    receita ? "Categoria da receita" : "Categoria da despesa";
+
+  document.getElementById("pagamentoLabel").textContent =
+    receita ? "Data de recebimento" : "Data de pagamento";
+
+  document.getElementById("statusLabel").textContent =
+    receita ? "Status do recebimento" : "Status da despesa";
+
+  document.getElementById("formaLabel").textContent =
+    receita ? "Forma de recebimento" : "Forma de pagamento";
+
+  document.getElementById("contaLabel").textContent =
+    receita ? "Conta de destino" : "Conta/Cartão";
+
+  document.getElementById("conta").placeholder =
+    receita ? "Ex.: Conta onde o valor entrou" : "Ex.: Nubank / Banco / Dinheiro";
+
+  const st=document.getElementById("status");
+  const statusAtual=st.value;
+
+  if(receita){
+    st.innerHTML='<option value="pendente">A receber</option><option value="recebido">Recebido</option>';
+    st.value=(statusAtual==="recebido" || statusAtual==="pago") ? "recebido" : "pendente";
+  }else{
+    st.innerHTML='<option value="pendente">Pendente</option><option value="pago">Pago</option>';
+    st.value=statusAtual==="pago" ? "pago" : "pendente";
+  }
+
+  if(typeof atualizarCampoPagamento==="function"){
+    atualizarCampoPagamento(false);
+  }
+}
+
+function init(){
+ fillCats();
+ document.getElementById("data").value=isoToday();
+ document.getElementById("filtroMes").value=monthNow();
+ document.getElementById("analiseMes").value=monthNow();
+ document.getElementById("nomeCasa").value=db.config.nomeCasa||"Minha Residência";
+ document.getElementById("limiteAlerta").value=db.config.limiteAlerta||80;
+ document.getElementById("catPadrao").value=db.config.catPadrao||"Outros";
+ atualizarTratamentoTipo(false);
+ document.getElementById("categoria").value=db.config.catPadrao||"Outros";
+ document.getElementById("rCat").value=db.config.catPadrao||"Outros";
+ document.getElementById("form").addEventListener("submit",salvarLancamento);
+ document.getElementById("status").addEventListener("change",()=>atualizarCampoPagamento(true));
+ document.getElementById("tipo").addEventListener("change",()=>atualizarTratamentoTipo(false));
+ document.getElementById("recForm").addEventListener("submit",salvarRecorrente);
+ document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>{document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));document.querySelectorAll(".section").forEach(x=>x.classList.remove("active"));b.classList.add("active");document.getElementById(b.dataset.tab).classList.add("active");if(b.dataset.tab==="dashboard")renderAnalise();if(b.dataset.tab==="orcamento")renderOrcamento();if(b.dataset.tab==="recorrentes")renderRecorrentes()});
+ render();
+}
+function statusReal(l){
+ if(l.tipo==="receita"){
+   if(l.status==="recebido" || l.status==="pago") return "recebido";
+   return "pendente";
+ }
+ if(l.status==="pago")return "pago";
+ if(l.tipo==="despesa"&&l.vencimento&&l.vencimento<isoToday())return "vencido";
+ return l.status||"pendente";
+}
+
+function salvarLancamento(ev){
+ ev.preventDefault();
+
+ const el = id => document.getElementById(id);
+ const id = el("editId").value;
+ const tipoVal = el("tipo").value;
+ const descricaoVal = el("descricao").value.trim();
+ const categoriaVal = el("categoria").value;
+ const valorVal = Number(el("valor").value);
+ const dataVal = el("data").value || isoToday();
+ const vencimentoVal = el("vencimento").value || "";
+ const pagamentoVal = el("pagamento").value || "";
+ const statusVal = el("status").value;
+ const formaVal = el("forma").value;
+ const contaVal = el("conta").value.trim();
+ const obsVal = el("obs").value.trim();
+
+ if(!descricaoVal){
+   alert("Informe a descrição do lançamento.");
+   el("descricao").focus();
+   return;
+ }
+
+ if(!(valorVal > 0)){
+   alert("Informe um valor válido.");
+   el("valor").focus();
+   return;
+ }
+
+ // Regras de consistência: despesa paga ou receita recebida precisam ter data.
+ if((tipoVal==="despesa" && statusVal==="pago") || (tipoVal==="receita" && statusVal==="recebido")){
+   if(!pagamentoVal){
+     alert(tipoVal==="receita" ? "Uma receita recebida precisa ter a data do recebimento." : "Uma despesa paga precisa ter a data do pagamento.");
+     el("pagamento").disabled=false;
+     el("pagamento").required=true;
+     el("pagamento").focus();
+     return;
+   }
+ }
+ // Receita não possui vencimento.
+ const vencimentoFinal = tipoVal==="receita" ? "" : vencimentoVal;
+
+ const obj = {
+   id: id || uid(),
+   tipo: tipoVal,
+   descricao: descricaoVal,
+   categoria: categoriaVal,
+   valor: valorVal,
+   data: dataVal,
+   vencimento: vencimentoFinal,
+   pagamento: pagamentoVal,
+   status: statusVal,
+   forma: formaVal,
+   conta: contaVal,
+   obs: obsVal
+ };
+
+ if(id){
+   const i = db.lancamentos.findIndex(x => x.id === id);
+   if(i >= 0) db.lancamentos[i] = obj;
+   else db.lancamentos.push(obj);
+ }else{
+   db.lancamentos.push(obj);
+ }
+
+ save();
+ resetForm();
+ render();
+}
+
+function resetForm(){document.getElementById("form").reset();document.getElementById("pagamento").disabled=false;document.getElementById("pagamento").required=false;document.getElementById("pagamentoHint").textContent="";document.getElementById("editId").value="";document.getElementById("formTitle").textContent="Adicionar lançamento";document.getElementById("data").value=isoToday();document.getElementById("tipo").value="despesa";atualizarTratamentoTipo(false);document.getElementById("categoria").value=db.config.catPadrao||"Outros"}
+function editar(id){
+ let l=db.lancamentos.find(x=>x.id===id);if(!l)return;
+ document.getElementById("tipo").value=l.tipo||"despesa";
+ atualizarTratamentoTipo(false);
+ ["descricao","categoria","valor","data","vencimento","pagamento","status","forma","conta","obs"].forEach(k=>document.getElementById(k).value=l[k]??"");
+ document.getElementById("editId").value=id;
+ document.getElementById("formTitle").textContent="Editar lançamento";
+ atualizarTratamentoTipo(true);
+ atualizarCampoPagamento(false);
+ window.scrollTo({top:document.getElementById("form").getBoundingClientRect().top+scrollY-20,behavior:"smooth"});
+}
+function excluir(id){if(confirm("Excluir este lançamento?")){db.lancamentos=db.lancamentos.filter(x=>x.id!==id);save();render()}}
+function marcarPago(id){
+ let l=db.lancamentos.find(x=>x.id===id);
+ if(!l)return;
+
+ const hojeFoiPago=confirm("Foi pago hoje?\n\nSIM = registrar a data de hoje.\nNÃO = informar a data em que foi pago.");
+
+ if(hojeFoiPago){
+   l.status="pago";
+   l.pagamento=isoToday();
+ }else{
+   let dataPg=prompt("Informe a data do pagamento no formato DD/MM/AAAA:");
+   if(!dataPg)return;
+
+   let partes=dataPg.split("/");
+   if(partes.length!==3){
+     alert("Data inválida. Use o formato DD/MM/AAAA.");
+     return;
+   }
+
+   let dataISO=partes[2]+"-"+String(partes[1]).padStart(2,"0")+"-"+String(partes[0]).padStart(2,"0");
+   let teste=new Date(dataISO+"T00:00:00");
+   if(isNaN(teste.getTime())){
+     alert("Data inválida.");
+     return;
+   }
+
+   l.status="pago";
+   l.pagamento=dataISO;
+ }
+
+ save();
+ render();
+}
+
+function render(){
+ let ls=db.lancamentos.slice().sort((a,b)=>(b.vencimento||b.data||"").localeCompare(a.vencimento||a.data||""));
+ let receita=ls.filter(x=>x.tipo==="receita"&&statusReal(x)==="recebido").reduce((s,x)=>s+x.valor,0);
+ let desp=ls.filter(x=>x.tipo==="despesa"&&statusReal(x)==="pago").reduce((s,x)=>s+x.valor,0);
+ let aberto=ls.filter(x=>x.tipo==="despesa"&&statusReal(x)!=="pago").reduce((s,x)=>s+x.valor,0);
+ let venc=ls.filter(x=>x.tipo==="despesa"&&statusReal(x)==="vencido").length;
+ kSaldo.textContent=money(receita-desp);kReceita.textContent=money(receita);kDespesa.textContent=money(desp);kAberto.textContent=money(aberto);kVencidas.textContent=venc;
+ drawPie(ls);renderMonthSummary(ls);renderAlerts(ls);renderTable();
+}
+function filtered(){
+ let q=(busca.value||"").toLowerCase(), ft=filtroTipo.value, fs=filtroStatus.value, fm=filtroMes.value;
+ return db.lancamentos.filter(l=>(!q||l.descricao.toLowerCase().includes(q)||l.categoria.toLowerCase().includes(q))&&(!ft||l.tipo===ft)&&(!fs||statusReal(l)===fs)&&(!fm||((l.vencimento||l.data||"").slice(0,7)===fm)));
+}
+function renderTable(){
+ let arr=filtered().slice().sort((a,b)=>{
+   const da=a.vencimento||a.data||"";
+   const db=b.vencimento||b.data||"";
+   return db.localeCompare(da);
+ });
+ const contador=document.getElementById("historicoContador");
+ if(contador) contador.textContent="("+arr.length+" lançamento"+(arr.length===1?"":"s")+")";
+ let tb=document.getElementById("tbody");
+ if(!arr.length){tb.innerHTML='<tr><td colspan="9" class="empty">Nenhum lançamento encontrado.</td></tr>';return}
+ tb.innerHTML=arr.map(l=>`<tr>
+ <td>${l.tipo==="receita"?"<span class='pill pago'>RECEITA</span>":"<span class='pill vencido'>DESPESA</span>"}</td>
+ <td><strong>${esc(l.descricao)}</strong><div class="small">${esc(l.conta||"")}</div></td><td>${esc(l.categoria)}</td><td><strong>${money(l.valor)}</strong></td>
+ <td>${l.tipo==="receita"?"—":fmtDate(l.vencimento)}</td><td>${fmtDate(l.pagamento)}</td>
+ <td><span class="pill ${statusReal(l)}">${l.tipo==="receita"?(statusReal(l)==="recebido"?"RECEBIDO":"A RECEBER"):statusReal(l).toUpperCase()}</span></td><td>${esc(l.forma)}</td>
+ <td class="actions-cell"><button class="iconbtn" onclick="editar('${l.id}')">Editar</button>${l.tipo==="despesa"&&statusReal(l)!=="pago"?`<button class="iconbtn" onclick="marcarPago('${l.id}')">Pagar</button>`:""}${l.tipo==="receita"&&statusReal(l)!=="recebido"?`<button class="iconbtn" onclick="marcarRecebido('${l.id}')">Receber</button>`:""}<button class="iconbtn" onclick="excluir('${l.id}')">Excluir</button></td>
+ </tr>`).join("");
+}
+function drawPie(ls){
+ let data={};ls.filter(l=>l.tipo==="despesa").forEach(l=>data[l.categoria]=(data[l.categoria]||0)+l.valor);
+ let entries=Object.entries(data).sort((a,b)=>b[1]-a[1]), canvas=document.getElementById("pie"),ctx=canvas.getContext("2d");
+ let dpr=devicePixelRatio||1,w=canvas.clientWidth,h=canvas.clientHeight;canvas.width=w*dpr;canvas.height=h*dpr;ctx.scale(dpr,dpr);ctx.clearRect(0,0,w,h);
+ let total=entries.reduce((s,x)=>s+x[1],0);
+ if(!total){ctx.fillStyle="#9fb0c9";ctx.font="15px Segoe UI";ctx.textAlign="center";ctx.fillText("Adicione despesas para visualizar o gráfico.",w/2,h/2);legend.innerHTML="";return}
+ let colors=["#3b82f6","#22c55e","#f59e0b","#ef4444","#06b6d4","#a855f7","#ec4899","#84cc16","#f97316","#14b8a6","#8b5cf6","#eab308"];
+ let cx=Math.min(w*.34,180),cy=h/2,r=Math.min(115,h*.34),start=-Math.PI/2;
+ entries.forEach((e,i)=>{let ang=e[1]/total*Math.PI*2;ctx.beginPath();ctx.moveTo(cx,cy);ctx.arc(cx,cy,r,start,start+ang);ctx.closePath();ctx.fillStyle=colors[i%colors.length];ctx.fill();start+=ang});
+ ctx.globalCompositeOperation="destination-out";ctx.beginPath();ctx.arc(cx,cy,r*.55,0,Math.PI*2);ctx.fill();ctx.globalCompositeOperation="source-over";
+ ctx.fillStyle="#eef4ff";ctx.font="bold 15px Segoe UI";ctx.textAlign="center";ctx.fillText(money(total),cx,cy+5);
+ legend.innerHTML=entries.slice(0,10).map((e,i)=>`<span><i class="dot" style="background:${colors[i%colors.length]}"></i>${esc(e[0])}: ${money(e[1])} (${(e[1]/total*100).toFixed(1)}%)</span>`).join("");
+}
+function renderMonthSummary(ls){
+ let m=filtroMes.value||monthNow(), a=ls.filter(l=>(l.data||l.vencimento||"").slice(0,7)===m);
+ let r=a.filter(l=>l.tipo==="receita").reduce((s,x)=>s+x.valor,0),d=a.filter(l=>l.tipo==="despesa").reduce((s,x)=>s+x.valor,0);
+ let cats={};a.filter(l=>l.tipo==="despesa").forEach(l=>cats[l.categoria]=(cats[l.categoria]||0)+l.valor);
+ let top=Object.entries(cats).sort((x,y)=>y[1]-x[1])[0];
+ document.getElementById("monthSummary").innerHTML=`<div class="budget-row"><div class="budget-head"><span>Receitas do mês</span><b class="positive">${money(r)}</b></div><div class="bar"><i style="width:100%"></i></div></div>
+ <div class="budget-row"><div class="budget-head"><span>Despesas do mês</span><b class="negative">${money(d)}</b></div><div class="bar"><i style="width:${r?Math.min(100,d/r*100):0}%"></i></div></div>
+ <div class="alert ${top?'yellow':'green'}"><strong>${top?"Maior gasto: "+esc(top[0]):"Sem despesas neste mês"}</strong>${top?money(top[1])+" ("+(top[1]/d*100).toFixed(1)+"% das despesas)":""}</div>`;
+}
+function renderAlerts(ls){
+ let future=ls.filter(l=>l.tipo==="despesa"&&statusReal(l)!=="pago"&&l.vencimento).sort((a,b)=>a.vencimento.localeCompare(b.vencimento)).slice(0,6);
+ alerts.innerHTML=future.length?future.map(l=>`<div class="alert ${statusReal(l)==="vencido"?"red":"yellow"}"><strong>${esc(l.descricao)} — ${money(l.valor)}</strong>${statusReal(l)==="vencido"?"Vencida desde ":"Vence em "}${fmtDate(l.vencimento)}</div>`).join(""):'<div class="alert green">Nenhuma conta pendente com vencimento cadastrado.</div>';
+}
+function renderAnalise(){
+ let m=document.getElementById("analiseMes").value||monthNow(), a=db.lancamentos.filter(l=>(l.data||l.vencimento||"").slice(0,7)===m),d=a.filter(l=>l.tipo==="despesa"),r=a.filter(l=>l.tipo==="receita");
+ let totalD=d.reduce((s,x)=>s+x.valor,0),totalR=r.reduce((s,x)=>s+x.valor,0),cats={};d.forEach(l=>cats[l.categoria]=(cats[l.categoria]||0)+l.valor);
+ let top=Object.entries(cats).sort((x,y)=>y[1]-x[1]),meta=Number(metaEconomia.value||0),economia=totalR-totalD;
+ analise.innerHTML=`<div class="grid cards" style="margin-top:15px"><div class="card"><div class="label">Receitas</div><div class="value positive">${money(totalR)}</div></div><div class="card"><div class="label">Despesas</div><div class="value negative">${money(totalD)}</div></div><div class="card"><div class="label">Resultado</div><div class="value ${economia>=0?'positive':'negative'}">${money(economia)}</div></div><div class="card"><div class="label">Economia %</div><div class="value">${totalR?(economia/totalR*100).toFixed(1):0}%</div></div><div class="card"><div class="label">Meta</div><div class="value ${economia>=meta?'positive':'warning'}">${money(meta)}</div></div></div>
+ <h2 style="margin-top:25px">Ranking de gastos por categoria</h2>${top.length?top.map((x,i)=>`<div class="budget-row"><div class="budget-head"><span>${i+1}. ${esc(x[0])}</span><b>${money(x[1])} — ${(x[1]/totalD*100).toFixed(1)}%</b></div><div class="bar"><i style="width:${totalD?x[1]/totalD*100:0}%"></i></div></div>`).join(""):'<div class="empty">Nenhuma despesa no mês selecionado.</div>'}`;
+}
+function renderOrcamento(){
+ let m=analiseMes.value||monthNow(),d=db.lancamentos.filter(l=>l.tipo==="despesa"&&(l.data||l.vencimento||"").slice(0,7)===m),used={};d.forEach(l=>used[l.categoria]=(used[l.categoria]||0)+l.valor);
+ orcamentoList.innerHTML=CATS.map(c=>{let budget=Number(db.orcamento[c]||0),u=used[c]||0,p=budget?u/budget*100:0;return `<div class="budget-row"><div class="budget-head"><span><b>${c}</b> — gasto ${money(u)}</span><span>Limite <input style="width:110px;background:#0b1527;color:white;border:1px solid #263653;border-radius:6px;padding:4px" type="number" min="0" step=".01" value="${budget||""}" placeholder="0" onchange="setBudget('${c}',this.value)"></span></div>${budget?`<div class="bar"><i style="width:${Math.min(100,p)}%;${p>100?'background:#ef4444':''}"></i></div><div class="small">${p.toFixed(1)}% utilizado${p>100?' — orçamento ultrapassado':''}</div>`:'<div class="small">Defina um limite mensal para acompanhar esta categoria.</div>'}</div>`}).join("");
+}
+function setBudget(c,v){db.orcamento[c]=Number(v||0);save();renderOrcamento()}
+function salvarRecorrente(e){e.preventDefault();db.recorrentes.push({id:uid(),desc:rDesc.value.trim(),cat:rCat.value,valor:Number(rValor.value),dia:Number(rDia.value),forma:rForma.value});save();e.target.reset();renderRecorrentes()}
+function renderRecorrentes(){
+ recList.innerHTML=db.recorrentes.length?`<table class="table"><thead><tr><th>Descrição</th><th>Categoria</th><th>Valor</th><th>Dia</th><th>Forma</th><th>Ações</th></tr></thead><tbody>${db.recorrentes.map(r=>`<tr><td>${esc(r.desc)}</td><td>${esc(r.cat)}</td><td>${money(r.valor)}</td><td>Dia ${r.dia}</td><td>${esc(r.forma)}</td><td><button class="iconbtn" onclick="gerarRec('${r.id}')">Gerar lançamento</button> <button class="iconbtn" onclick="delRec('${r.id}')">Excluir</button></td></tr>`).join("")}</tbody></table>`:'<div class="empty">Nenhuma conta recorrente cadastrada.</div>';
+}
+function gerarRec(id){let r=db.recorrentes.find(x=>x.id===id);if(!r)return;let m=monthNow(),dia=String(Math.min(r.dia,new Date(new Date().getFullYear(),new Date().getMonth()+1,0).getDate())).padStart(2,"0"),v=m+"-"+dia;db.lancamentos.push({id:uid(),tipo:"despesa",descricao:r.desc,categoria:r.cat,valor:r.valor,data:isoToday(),vencimento:v,pagamento:"",status:"pendente",forma:r.forma,conta:"",obs:"Gerado de conta recorrente"});save();render();alert("Lançamento gerado para "+fmtDate(v))}
+function delRec(id){if(confirm("Excluir esta recorrência?")){db.recorrentes=db.recorrentes.filter(x=>x.id!==id);save();renderRecorrentes()}}
+function saveConfig(){db.config.nomeCasa=nomeCasa.value;db.config.limiteAlerta=Number(limiteAlerta.value||80);db.config.catPadrao=catPadrao.value;save()}
+function exportar(){let blob=new Blob([JSON.stringify(db,null,2)],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="backup-financeiro-"+isoToday()+".json";a.click();URL.revokeObjectURL(a.href)}
+function importar(input){let f=input.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{try{let x=JSON.parse(r.result);if(!x.lancamentos||!x.recorrentes)throw 0;if(confirm("Importar este backup e substituir os dados atuais?")){db=x;save();location.reload()}}catch(e){alert("Arquivo de backup inválido.")}};r.readAsText(f)}
+function limparTudo(){if(confirm("ATENÇÃO: isso apagará todos os lançamentos, recorrências e orçamentos deste navegador. Continuar?")){localStorage.removeItem(KEY);location.reload()}}
+
+let scanner=null;
+let scannerRunning=false;
+let ultimoCodigo="";
+
+function prepararScanner(){
+  let sel=document.getElementById("scanCategoria");
+  if(sel && !sel.options.length) sel.innerHTML=CATS.map(c=>`<option>${c}</option>`).join("");
+  if(!scannerRunning) iniciarScanner();
+}
+
+async function iniciarScanner(){
+  try{
+    if(typeof Html5Qrcode==="undefined"){
+      scanStatus.innerHTML='<strong>Biblioteca do leitor não carregou.</strong><br>Verifique sua conexão com a internet.';
+      return;
+    }
+    scanner = new Html5Qrcode("reader");
+    const config = {
+      fps: 10,
+      qrbox: {width: 280, height: 160},
+      aspectRatio: 1.777
+    };
+    await scanner.start(
+      {facingMode:"environment"},
+      config,
+      (decodedText)=>{
+        if(decodedText && decodedText!==ultimoCodigo){
+          ultimoCodigo=decodedText;
+          codigoLido.textContent=decodedText;
+          scanStatus.className="alert green";
+          scanStatus.innerHTML="<strong>Código lido com sucesso.</strong> Confira os dados antes de adicionar.";
+          interpretarCodigo(decodedText);
+        }
+      },
+      ()=>{}
+    );
+    scannerRunning=true;
+    scanStatus.className="alert";
+    scanStatus.textContent="Câmera ativa. Aponte para o código de barras ou QR Code.";
+  }catch(e){
+    scannerRunning=false;
+    scanStatus.className="alert red";
+    scanStatus.innerHTML="<strong>Não foi possível iniciar a câmera.</strong><br>Em celulares, o navegador normalmente exige HTTPS para liberar a câmera.";
+  }
+}
+
+async function pararScanner(){
+  try{
+    if(scanner && scannerRunning){
+      await scanner.stop();
+      scanner.clear();
+    }
+  }catch(e){}
+  scannerRunning=false;
+}
+
+function interpretarCodigo(code){
+  // Alguns boletos fornecem linha digitável/código numérico.
+  // A extração automática do valor e vencimento é conservadora:
+  // não inventa dados quando o formato não é reconhecido.
+  let digits=code.replace(/\D/g,"");
+  if(digits.length>=44 && digits.length<=48){
+    let valor=null, venc=null;
+
+    // Arrecadação/concessionárias: 44 dígitos.
+    // O valor pode estar no segmento específico, mas varia conforme o padrão.
+    // Por segurança, apenas tenta identificar formatos conhecidos de boleto bancário.
+    if(digits.length===47 || digits.length===48){
+      let candidato=digits.slice(37,47);
+      if(/^\d{10}$/.test(candidato)){
+        let n=Number(candidato)/100;
+        if(n>0 && n<100000000) valor=n;
+      }
+    }
+
+    if(valor && !scanValor.value) scanValor.value=valor.toFixed(2);
+    scanStatus.innerHTML="<strong>Código numérico identificado.</strong> Alguns campos podem ser preenchidos manualmente para conferência.";
+  }else if(code.startsWith("http://") || code.startsWith("https://")){
+    scanStatus.innerHTML="<strong>QR Code detectado.</strong><br>O conteúdo é um endereço eletrônico. A consulta automática depende de uma integração autorizada.";
+  }
+}
+
+function adicionarContaEscaneada(){
+  let codigo=ultimoCodigo||codigoLido.textContent;
+  if(!codigo || codigo==="Nenhum código lido."){
+    alert("Faça uma leitura primeiro.");
+    return;
+  }
+  let desc=scanDescricao.value.trim()||"Boleto / conta escaneada";
+  let val=Number(scanValor.value||0);
+  let venc=scanVencimento.value||"";
+  let cat=scanCategoria.value||"Outros";
+
+  db.lancamentos.push({
+    id:uid(),tipo:"despesa",descricao:desc,categoria:cat,valor:val,
+    data:isoToday(),vencimento:venc,pagamento:"",status:"pendente",
+    forma:"Boleto",conta:"",obs:"Código lido: "+codigo
+  });
+  save(); render();
+  alert("Conta adicionada ao controle financeiro.");
+}
+
+async function copiarCodigo(){
+  let code=ultimoCodigo||codigoLido.textContent;
+  if(!code || code==="Nenhum código lido.") return alert("Nenhum código disponível.");
+  try{
+    await navigator.clipboard.writeText(code);
+    scanStatus.className="alert green";
+    scanStatus.textContent="Código copiado para a área de transferência.";
+  }catch(e){alert("Não foi possível copiar automaticamente.");}
+}
+
+
+/* ================= SEGURANÇA LOCAL ================= */
+const AUTH_KEY="financeiro_residencial_auth_v2";
+let auth=null;
+let tentativas=0,bloqueioAte=0,lockTimer=null;
+
+function onlyDigits(v){return String(v||"").replace(/\D/g,"");}
+function formatCPF(v){
+  let d=onlyDigits(v).slice(0,11);
+  if(d.length>9)return d.replace(/(\d{3})(\d{3})(\d{3})(\d{0,2})/,"$1.$2.$3-$4");
+  if(d.length>6)return d.replace(/(\d{3})(\d{3})(\d{0,3})/,"$1.$2.$3");
+  if(d.length>3)return d.replace(/(\d{3})(\d{0,3})/,"$1.$2");
+  return d;
+}
+function cpfValido(cpf){
+  const d=onlyDigits(cpf);
+  if(d.length!==11 || /^(\d)\1{10}$/.test(d)) return false;
+  let soma=0;
+  for(let i=0;i<9;i++)soma+=Number(d[i])*(10-i);
+  let r=(soma*10)%11;if(r===10)r=0;
+  if(r!==Number(d[9]))return false;
+  soma=0;
+  for(let i=0;i<10;i++)soma+=Number(d[i])*(11-i);
+  r=(soma*10)%11;if(r===10)r=0;
+  return r===Number(d[10]);
+}
+async function hashSenha(senha){
+  try{
+    if(window.crypto && crypto.subtle){
+      const buf=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(senha));
+      return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,"0")).join("");
+    }
+  }catch(err){ console.warn("SHA-256 indisponível; usando hash local de compatibilidade.",err); }
+  let h1=2166136261,h2=16777619;
+  const txt=String(senha);
+  for(let i=0;i<txt.length;i++){
+    const c=txt.charCodeAt(i);
+    h1 ^= c; h1=Math.imul(h1,16777619);
+    h2 ^= (c+i); h2=Math.imul(h2,2246822519);
+  }
+  return (h1>>>0).toString(16).padStart(8,"0")+(h2>>>0).toString(16).padStart(8,"0");
+}
+function getUsers(){
+  try{
+    const raw=JSON.parse(localStorage.getItem(AUTH_KEY)||"null");
+    if(!raw)return [];
+    if(Array.isArray(raw.users)){
+      return raw.users.filter(u=>u&&typeof u==="object"&&u.hash).map(u=>({
+        cpf:formatCPF(u.cpf||""),
+        nome:String(u.nome||u.usuario||""),
+        hash:String(u.hash),
+        autoLock:Number(u.autoLock??5)
+      }));
+    }
+    if(raw.usuario&&raw.hash){
+      return [{cpf:formatCPF(raw.cpf||""),nome:String(raw.usuario),hash:String(raw.hash),autoLock:Number(raw.autoLock??5)}];
+    }
+  }catch(err){ console.error("Falha ao ler os usuários locais",err); }
+  return [];
+}
+function saveUsers(users){
+  try{
+    localStorage.setItem(AUTH_KEY,JSON.stringify({version:3,users:Array.isArray(users)?users:[]}));
+    return true;
+  }catch(err){
+    console.error("Falha ao salvar os usuários locais",err);
+    alert("Não foi possível salvar o cadastro neste navegador. Verifique se o armazenamento local está habilitado.");
+    return false;
+  }
+}
+function mostrarTelaLogin(){
+  const login=document.getElementById("loginScreen");
+  const cadastro=document.getElementById("cadastroScreen");
+  if(login)login.style.display="flex";
+  if(cadastro)cadastro.style.display="none";
+  const cpf=document.getElementById("loginCPF");
+  if(cpf)setTimeout(()=>cpf.focus(),50);
+}
+function abrirCadastro(){
+  const login=document.getElementById("loginScreen");
+  const cadastro=document.getElementById("cadastroScreen");
+  if(login)login.style.display="none";
+  if(cadastro){
+    cadastro.style.display="flex";
+    const form=document.getElementById("cadastroForm");
+    if(form)form.reset();
+    const erro=document.getElementById("cadError");
+    if(erro)erro.style.display="none";
+    setTimeout(()=>{const c=document.getElementById("cadCPF");if(c)c.focus();},50);
+  }
+}
+function fecharCadastro(){ mostrarTelaLogin(); }
+async function cadastrarUsuario(e){
+  if(e&&e.preventDefault)e.preventDefault();
+  const erro=document.getElementById("cadError");
+  try{
+    const cpf=formatCPF(document.getElementById("cadCPF").value);
+    const nome=document.getElementById("cadNome").value.trim();
+    const senha=document.getElementById("cadPass").value;
+    erro.style.display="none";
+
+    if(!cpfValido(cpf)){erro.style.display="block";erro.textContent="Informe um CPF válido com 11 números.";return false;}
+    if(nome.length<3){erro.style.display="block";erro.textContent="Informe o nome completo.";return false;}
+    if(senha.length<6){erro.style.display="block";erro.textContent="A senha precisa ter pelo menos 6 caracteres.";return false;}
+
+    const users=getUsers();
+    const cpfDigits=onlyDigits(cpf);
+    if(users.some(u=>onlyDigits(u.cpf)===cpfDigits)){
+      erro.style.display="block";erro.textContent="Este CPF já está cadastrado.";return false;
+    }
+
+    const novo={cpf,nome,hash:await hashSenha(senha),autoLock:5};
+    users.push(novo);
+    if(!saveUsers(users))return false;
+
+    mostrarTelaLogin();
+    document.getElementById("loginCPF").value=cpf;
+    document.getElementById("loginPass").value="";
+    const le=document.getElementById("loginError");
+    le.style.display="block";
+    le.textContent="Cadastro realizado com sucesso. Digite sua senha para entrar.";
+    return false;
+  }catch(err){
+    console.error("Erro ao cadastrar usuário",err);
+    erro.style.display="block";
+    erro.textContent="Não foi possível concluir o cadastro.";
+    return false;
+  }
+}
+async function fazerLogin(e){
+  if(e&&e.preventDefault)e.preventDefault();
+  const agora=Date.now(),erro=document.getElementById("loginError");
+  if(bloqueioAte>agora){
+    erro.style.display="block";erro.textContent="Muitas tentativas. Aguarde "+Math.ceil((bloqueioAte-agora)/1000)+" segundos.";return false;
+  }
+  const cpf=formatCPF(document.getElementById("loginCPF").value);
+  const s=document.getElementById("loginPass").value;
+  const users=getUsers();
+  const h=await hashSenha(s);
+  const user=users.find(x=>onlyDigits(x.cpf)===onlyDigits(cpf)&&x.hash===h);
+
+  if(user){
+    tentativas=0;
+    auth=user;
+    document.getElementById("loginScreen").style.display="none";
+    document.getElementById("cadastroScreen").style.display="none";
+    document.getElementById("currentUser").textContent="👤 "+user.nome;
+    document.getElementById("secUser").value=user.nome;
+    document.getElementById("autoLock").value=user.autoLock??5;
+    iniciarAutoLock();
+    document.getElementById("loginPass").value="";
+    erro.style.display="none";
+  }else{
+    tentativas++;
+    erro.style.display="block";
+    erro.textContent="CPF ou senha incorretos.";
+    if(tentativas>=5){
+      bloqueioAte=Date.now()+30000;tentativas=0;
+      erro.textContent="5 tentativas incorretas. Acesso bloqueado por 30 segundos.";
+    }
+  }
+  return false;
+}
+function bloquearApp(){
+  clearTimeout(lockTimer);
+  document.getElementById("loginCPF").value="";
+  document.getElementById("loginPass").value="";
+  document.getElementById("loginError").style.display="none";
+  mostrarTelaLogin();
+}
+function iniciarAutoLock(){
+  clearTimeout(lockTimer);
+  const min=Number(auth?.autoLock||0);
+  if(min>0)lockTimer=setTimeout(bloquearApp,min*60000);
+}
+function atividadeUsuario(){
+  if(document.getElementById("loginScreen").style.display==="none"&&document.getElementById("cadastroScreen").style.display==="none")iniciarAutoLock();
+}
+async function alterarSenha(){
+  const n=document.getElementById("novaSenha").value,c=document.getElementById("confSenha").value;
+  if(!n||n.length<6)return alert("A nova senha precisa ter pelo menos 6 caracteres.");
+  if(n!==c)return alert("A confirmação da senha não confere.");
+  const users=getUsers(),idx=users.findIndex(x=>onlyDigits(x.cpf)===onlyDigits(auth?.cpf));
+  if(idx<0)return alert("Usuário não encontrado.");
+  users[idx].hash=await hashSenha(n);auth=users[idx];saveUsers(users);
+  document.getElementById("novaSenha").value="";document.getElementById("confSenha").value="";
+  alert("Senha alterada com sucesso.");
+}
+function salvarAutoLock(){
+  const n=Math.max(0,Math.min(240,Number(document.getElementById("autoLock").value||5)));
+  const users=getUsers(),idx=users.findIndex(x=>onlyDigits(x.cpf)===onlyDigits(auth?.cpf));
+  if(idx>=0){users[idx].autoLock=n;auth=users[idx];saveUsers(users);}
+  iniciarAutoLock();
+  alert(n===0?"Bloqueio automático desativado.":"Bloqueio automático configurado para "+n+" minutos.");
+}
+function prepararAuth(){
+  mostrarTelaLogin();
+}
+function inicializarSegurancaUI(){
+  const loginCPF=document.getElementById("loginCPF");
+  if(loginCPF)loginCPF.addEventListener("input",e=>e.target.value=formatCPF(e.target.value));
+  const cadCPF=document.getElementById("cadCPF");
+  if(cadCPF)cadCPF.addEventListener("input",e=>e.target.value=formatCPF(e.target.value));
+  ["click","keydown","touchstart"].forEach(ev=>document.addEventListener(ev,atividadeUsuario,{passive:true}));
+}
+window.addEventListener("resize",()=>drawPie(db.lancamentos));
+document.querySelectorAll(".tab").forEach(b=>{
+  if(b.dataset.tab==="scanner"){
+    b.addEventListener("click",()=>setTimeout(prepararScanner,150));
+  }
+});
+init();
+inicializarSegurancaUI();
+prepararAuth();
+
+</script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(()=>{}));
+}
+</script>
+</body>
+</html>
