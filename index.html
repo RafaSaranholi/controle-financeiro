@@ -74,6 +74,12 @@ header{display:flex;justify-content:space-between;align-items:center;gap:15px;ma
 #scanner.scanner-fullscreen-mode .scan-close{display:flex}
 .scan-close{display:none;position:absolute;right:12px;top:12px;z-index:6;width:42px;height:42px;border:1px solid rgba(255,255,255,.25);border-radius:50%;background:rgba(0,0,0,.62);color:#fff;font-size:24px;align-items:center;justify-content:center}
 @media(max-width:650px){#scanner.scanner-fullscreen-mode .scan-result{left:7px;right:7px;bottom:7px;max-height:40vh;padding:9px}#scanner.scanner-fullscreen-mode .scan-actions .btn{padding:8px 10px;font-size:12px}}
+/* Leitor: câmera limpa, somente enquadramento e mensagem discreta */
+#scanner.scanner-fullscreen-mode .scan-result{left:0!important;right:0!important;bottom:0!important;max-height:none!important;padding:0!important;background:transparent!important;backdrop-filter:none!important;border:0!important;pointer-events:none!important}
+#scanner.scanner-fullscreen-mode .scan-result .alert{display:none!important}
+#scanner.scanner-fullscreen-mode #reader:after{content:"";position:absolute;left:5%;right:5%;top:31%;height:38%;border:2px solid rgba(255,255,255,.92);border-radius:12px;box-shadow:0 0 0 9999px rgba(0,0,0,.22);pointer-events:none}
+#scanner.scanner-fullscreen-mode .scan-close{display:flex;z-index:10}
+
 </style>
 
 <style>
@@ -231,31 +237,8 @@ header{display:flex;justify-content:space-between;align-items:center;gap:15px;ma
 
 <div class="scan-grid">
   <div class="scanner"><div id="reader"></div></div>
-  <div class="scan-result">
-    <h2 style="margin-top:0">Resultado da leitura</h2>
-    <div id="scanStatus" class="alert">Aguardando leitura...</div>
-    <div class="field" style="margin-top:10px">
-      <label>Código / linha digitável</label>
-      <div id="codigoLido" class="codebox">Nenhum código lido.</div>
-    </div>
-
-    <div class="formgrid" style="margin-top:12px">
-      <div class="field"><label>Descrição</label><input id="scanDescricao" placeholder="Ex.: Conta de energia"></div>
-      <div class="field"><label>Valor</label><input id="scanValor" type="number" min="0" step=".01" placeholder="0,00"></div>
-      <div class="field"><label>Vencimento</label><input id="scanVencimento" type="date"></div>
-      <div class="field"><label>Categoria</label><select id="scanCategoria"></select></div>
-    </div>
-
-    <div class="scan-actions">
-      <button class="btn primary" onclick="adicionarContaEscaneada()">Adicionar ao financeiro</button>
-      <button class="btn" onclick="copiarCodigo()">Copiar código</button>
-      <button class="btn danger" onclick="pararScanner()">Parar câmera</button>
-    </div>
-    <p class="small" style="margin-top:12px">
-      Observação: a leitura identifica o conteúdo do código. Para consultar automaticamente uma
-      cobrança em um banco/concessionária e obter dados que não estejam codificados, será necessária
-      uma integração externa autorizada.
-    </p>
+  <div class="scan-result scan-overlay-info">
+    <div id="scanStatus" class="alert">Aponte para o código de barras.</div>
   </div>
 </div>
 </div>
@@ -745,104 +728,149 @@ function fecharScannerTelaCheia(){
 }
 
 function prepararScanner(){
-  let sel=document.getElementById("scanCategoria");
-  if(sel && !sel.options.length) sel.innerHTML=CATS.map(c=>`<option>${c}</option>`).join("");
   abrirScannerTelaCheia();
   if(!scannerRunning) iniciarScanner();
 }
 
 async function iniciarScanner(){
   try{
-    if(typeof Html5Qrcode==="undefined"){
-      scanStatus.innerHTML='<strong>Biblioteca do leitor não carregou.</strong><br>Verifique sua conexão com a internet.';
-      return;
-    }
+    if(typeof Html5Qrcode==="undefined") throw new Error("Biblioteca do leitor não carregou.");
     scanner = new Html5Qrcode("reader");
     const formatos = [
-      Html5QrcodeSupportedFormats.QR_CODE,
-      Html5QrcodeSupportedFormats.CODE_128,
-      Html5QrcodeSupportedFormats.CODE_39,
-      Html5QrcodeSupportedFormats.CODE_93,
-      Html5QrcodeSupportedFormats.CODABAR,
-      Html5QrcodeSupportedFormats.EAN_13,
-      Html5QrcodeSupportedFormats.EAN_8,
-      Html5QrcodeSupportedFormats.ITF,
-      Html5QrcodeSupportedFormats.UPC_A,
-      Html5QrcodeSupportedFormats.UPC_E,
-      Html5QrcodeSupportedFormats.PDF_417,
-      Html5QrcodeSupportedFormats.DATA_MATRIX,
+      Html5QrcodeSupportedFormats.QR_CODE, Html5QrcodeSupportedFormats.CODE_128,
+      Html5QrcodeSupportedFormats.CODE_39, Html5QrcodeSupportedFormats.CODE_93,
+      Html5QrcodeSupportedFormats.CODABAR, Html5QrcodeSupportedFormats.EAN_13,
+      Html5QrcodeSupportedFormats.EAN_8, Html5QrcodeSupportedFormats.ITF,
+      Html5QrcodeSupportedFormats.UPC_A, Html5QrcodeSupportedFormats.UPC_E,
+      Html5QrcodeSupportedFormats.PDF_417, Html5QrcodeSupportedFormats.DATA_MATRIX,
       Html5QrcodeSupportedFormats.AZTEC
     ].filter(Boolean);
-    const config = {
-      fps: 15,
-      formatsToSupport: formatos,
-      qrbox: (viewfinderWidth, viewfinderHeight) => ({
-        width: Math.floor(viewfinderWidth * 0.94),
-        height: Math.floor(viewfinderHeight * 0.62)
-      }),
-      aspectRatio: 1.777
+    const config={
+      fps:15,
+      formatsToSupport:formatos,
+      qrbox:(w,h)=>({width:Math.floor(w*.90),height:Math.floor(h*.34)}),
+      aspectRatio:1.777
     };
-    await scanner.start(
-      {
-        facingMode:"environment"
-      },
-      config,
-      (decodedText)=>{
-        if(decodedText && decodedText!==ultimoCodigo){
-          ultimoCodigo=decodedText;
-          codigoLido.textContent=decodedText;
-          scanStatus.className="alert green";
-          scanStatus.innerHTML="<strong>Código lido com sucesso.</strong> Confira os dados antes de adicionar.";
-          interpretarCodigo(decodedText);
-        }
-      },
-      ()=>{}
-    );
+    await scanner.start({facingMode:"environment"},config,async(decodedText)=>{
+      if(!decodedText || decodedText===ultimoCodigo) return;
+      ultimoCodigo=decodedText;
+      await leituraConcluida(decodedText);
+    },()=>{});
     scannerRunning=true;
-    scanStatus.className="alert";
-    scanStatus.textContent="Câmera ativa. Aponte para o código de barras ou QR Code.";
   }catch(e){
     scannerRunning=false;
     scanStatus.className="alert red";
-    scanStatus.innerHTML="<strong>Não foi possível iniciar a câmera.</strong><br>Em celulares, o navegador normalmente exige HTTPS para liberar a câmera.";
+    scanStatus.style.display="block";
+    scanStatus.innerHTML="<strong>Não foi possível iniciar a câmera.</strong><br>"+esc(String(e.message||e));
   }
+}
+
+async function leituraConcluida(code){
+  // Para imediatamente a câmera e volta à tela de lançamentos.
+  try{
+    if(scanner && scannerRunning){ await scanner.stop(); scanner.clear(); }
+  }catch(e){}
+  scannerRunning=false;
+  fecharScannerTelaCheia();
+
+  const info=interpretarCodigo(code);
+  const desc=document.getElementById("descricao");
+  const val=document.getElementById("valor");
+  const venc=document.getElementById("vencimento");
+  const forma=document.getElementById("forma");
+  const obs=document.getElementById("obs");
+
+  if(desc) desc.value=info.descricao || "Boleto / conta escaneada";
+  if(val && info.valor!=null) val.value=Number(info.valor).toFixed(2);
+  if(venc && info.vencimento) venc.value=info.vencimento;
+  if(forma) forma.value="Boleto";
+  if(obs) obs.value="Código lido: "+code;
+
+  // Volta para Lançamentos e deixa o usuário conferir antes de salvar.
+  document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
+  document.querySelectorAll(".section").forEach(x=>x.classList.remove("active"));
+  const tab=document.querySelector('.tab[data-tab="lancamentos"]');
+  if(tab) tab.classList.add("active");
+  const sec=document.getElementById("lancamentos");
+  if(sec) sec.classList.add("active");
+  if(typeof resetForm === "function"){
+    // Mantém os campos preenchidos pela leitura sem entrar em modo de edição.
+    const edit=document.getElementById("editId"); if(edit) edit.value="";
+  }
+  window.scrollTo({top:0,behavior:"smooth"});
 }
 
 async function pararScanner(){
   try{
-    if(scanner && scannerRunning){
-      await scanner.stop();
-      scanner.clear();
-    }
+    if(scanner && scannerRunning){ await scanner.stop(); scanner.clear(); }
   }catch(e){}
   scannerRunning=false;
   fecharScannerTelaCheia();
 }
 
 function interpretarCodigo(code){
-  // Alguns boletos fornecem linha digitável/código numérico.
-  // A extração automática do valor e vencimento é conservadora:
-  // não inventa dados quando o formato não é reconhecido.
-  let digits=code.replace(/\D/g,"");
-  if(digits.length>=44 && digits.length<=48){
-    let valor=null, venc=null;
+  const digits=String(code||"").replace(/\D/g,"");
+  let valor=null, vencimento="", tipo="";
 
-    // Arrecadação/concessionárias: 44 dígitos.
-    // O valor pode estar no segmento específico, mas varia conforme o padrão.
-    // Por segurança, apenas tenta identificar formatos conhecidos de boleto bancário.
-    if(digits.length===47 || digits.length===48){
-      let candidato=digits.slice(37,47);
-      if(/^\d{10}$/.test(candidato)){
-        let n=Number(candidato)/100;
-        if(n>0 && n<100000000) valor=n;
-      }
-    }
-
-    if(valor && !scanValor.value) scanValor.value=valor.toFixed(2);
-    scanStatus.innerHTML="<strong>Código numérico identificado.</strong> Alguns campos podem ser preenchidos manualmente para conferência.";
-  }else if(code.startsWith("http://") || code.startsWith("https://")){
-    scanStatus.innerHTML="<strong>QR Code detectado.</strong><br>O conteúdo é um endereço eletrônico. A consulta automática depende de uma integração autorizada.";
+  // Boleto bancário: código de barras com 44 dígitos.
+  if(digits.length===44){
+    tipo="boleto-bancario";
+    const banco=digits.slice(0,3);
+    const fator=digits.slice(5,9);
+    const valorDigits=digits.slice(9,19);
+    const n=Number(valorDigits)/100;
+    if(n>0) valor=n;
+    if(/^\d{4}$/.test(fator) && fator!=="0000") vencimento=dataVencimentoBoleto(fator);
   }
+
+  // Linha digitável de boleto bancário: converte para o código de 44 dígitos.
+  if(digits.length===47){
+    tipo="linha-digitavel";
+    const barras=digits.slice(0,4)+digits[32]+digits.slice(33,47)+digits.slice(4,9)+digits.slice(10,20)+digits.slice(21,31);
+    const fator=barras.slice(5,9), valorDigits=barras.slice(9,19);
+    const n=Number(valorDigits)/100;
+    if(n>0) valor=n;
+    if(/^\d{4}$/.test(fator) && fator!=="0000") vencimento=dataVencimentoBoleto(fator);
+  }
+
+  // Arrecadação/concessionárias: 44 dígitos. O valor depende do dígito de referência.
+  if(digits.length===44 && !valor){
+    const referencia=digits[2];
+    const base=digits.slice(4,15);
+    if((referencia==="6"||referencia==="7") && /^\d+$/.test(base)) valor=Number(base)/100;
+    if((referencia==="8"||referencia==="9") && /^\d+$/.test(base)) valor=Number(base)/10000;
+  }
+
+  // QR Code PIX/URL: não tenta inventar valor; apenas preserva o conteúdo.
+  if(/^https?:\/\//i.test(code) || /^000201/i.test(digits)) tipo="qr";
+
+  return {valor,vencimento,tipo,descricao:"Boleto / conta escaneada"};
+}
+
+function dataVencimentoBoleto(fator){
+  const f=Number(fator);
+  if(!f) return "";
+  // Fator atual: 1000 corresponde a 07/10/2007; após 9999 reinicia em 22/02/2025.
+  let base=new Date(1997,9,7);
+  if(f>=1000 && f<=9999) base=new Date(1997,9,7);
+  if(f>=1000){
+    if(f>=1000 && f<=9999){
+      const d=new Date(1997,9,7); d.setDate(d.getDate()+f); base=d;
+    }
+    if(f>=1000 && new Date().getFullYear()>=2025 && f<1000){
+      const d=new Date(2025,1,22); d.setDate(d.getDate()+f); base=d;
+    }
+  }
+  // Para o padrão pós-2025, o fator voltou a 1000 em 22/02/2025.
+  if(f>=1000){
+    const antigo=new Date(1997,9,7); antigo.setDate(antigo.getDate()+f);
+    const novo=new Date(2025,1,22); novo.setDate(novo.getDate()+(f-1000));
+    // Se o fator representa uma data recente, usa a base nova; caso contrário, a antiga.
+    const hoje=new Date(); const candidatos=[antigo,novo].filter(d=>d.getFullYear()>=2000);
+    const escolhido=candidatos.find(d=>d>=new Date(2024,0,1)) || antigo;
+    base=escolhido;
+  }
+  return base.toISOString().slice(0,10);
 }
 
 function adicionarContaEscaneada(){

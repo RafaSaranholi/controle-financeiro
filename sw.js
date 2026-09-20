@@ -1,4 +1,4 @@
-const CACHE_NAME = 'controle-financeiro-v4-online-auto-update';
+const CACHE_NAME = 'controle-financeiro-v5';
 const APP_SHELL = ['./','./index.html','./manifest.json','./icon-192.png','./icon-512.png'];
 
 self.addEventListener('install', event => {
