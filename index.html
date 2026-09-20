@@ -315,7 +315,7 @@ Esta proteção é adequada para a versão local/PWA. Quando transformarmos o si
 </div>
 </section>
 
-<div class="footer">Controle Financeiro Residencial • dados armazenados localmente neste dispositivo</div>
+<div class="footer">Controle Financeiro Residencial • sincronizado na nuvem</div>
 </div>
 
 <script>
@@ -325,6 +325,7 @@ const SUPABASE_PUBLISHABLE_KEY="sb_publishable_waDTXx-X4FcJvKCkOuYrHg_e-kO8IEv";
 const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}});
 let usuarioSupabaseId=null;
 let sincronizacaoFila=Promise.resolve();
+let realtimeChannel=null;
 const CATS=["Moradia","Alimentação","Supermercado","Transporte","Energia","Água","Internet/Telefone","Saúde","Educação","Lazer","Compras","Impostos","Seguros","Assinaturas","Pets","Filhos","Manutenção","Dívidas","Investimentos","Outros"];
 const RECEITA_CATS=["Salário","Adiantamento","Hora extra","Serviço/Freelance","Venda","Comissão","Benefício","Aluguel recebido","Rendimento/Investimento","Reembolso","Pensão/Recebimento","Outros"];
 let db=normalizarDb(JSON.parse(localStorage.getItem(KEY)||"null"));
@@ -890,6 +891,46 @@ function temDadosNoDb(obj){
   const x=normalizarDb(obj);
   return x.lancamentos.length>0 || x.recorrentes.length>0 || Object.keys(x.orcamento||{}).some(k=>Number(x.orcamento[k]||0)!==0) || !!(x.config && x.config.nomeCasa && x.config.nomeCasa!=="Minha Residência");
 }
+function pararRealtime(){
+  if(realtimeChannel){
+    try{ sb.removeChannel(realtimeChannel); }catch(_e){}
+    realtimeChannel=null;
+  }
+}
+
+async function iniciarRealtime(){
+  pararRealtime();
+  if(!usuarioSupabaseId)return;
+
+  const channelName="financeiro-realtime-"+usuarioSupabaseId;
+  realtimeChannel=sb.channel(channelName);
+  realtimeChannel.on(
+    "postgres_changes",
+    {event:"*",schema:"public",table:"dados_financeiros",filter:"usuario_id=eq."+usuarioSupabaseId},
+    payload=>{
+      try{
+        if(payload.eventType==="DELETE"){
+          db=dbVazia();
+        }else if(payload.new && payload.new.dados){
+          db=normalizarDb(payload.new.dados);
+        }else{
+          return;
+        }
+        localStorage.setItem(KEY,JSON.stringify(db));
+        render();
+      }catch(err){
+        console.error("Erro ao atualizar dados em tempo real:",err);
+      }
+    }
+  );
+
+  realtimeChannel.subscribe(status=>{
+    if(status!=="SUBSCRIBED" && status!=="CHANNEL_ERROR" && status!=="TIMED_OUT"){
+      console.log("Realtime status:",status);
+    }
+  });
+}
+
 async function carregarDadosRemotos(){
   const {data,error}=await sb.from('dados_financeiros').select('dados').eq('usuario_id',usuarioSupabaseId).maybeSingle();
   if(error)throw error;
@@ -961,6 +1002,7 @@ async function cadastrarUsuario(e){
     console.error("Erro ao cadastrar usuário",err);
     erro.style.display="block";
     erro.textContent=authMsg(err);
+    pararRealtime();
     try{await sb.auth.signOut();}catch(_e){}
     usuarioSupabaseId=null;auth=null;
     return false;
@@ -1001,6 +1043,7 @@ async function fazerLogin(e){
     document.getElementById("loginPass").value="";
     erro.style.display="none";
     render();
+    await iniciarRealtime();
   }catch(err){
     console.error("Erro ao entrar",err);
     tentativas++;
@@ -1011,6 +1054,7 @@ async function fazerLogin(e){
       tentativas=0;
       erro.textContent="5 tentativas incorretas. Acesso bloqueado por 30 segundos.";
     }
+    pararRealtime();
     try{await sb.auth.signOut();}catch(_e){}
     usuarioSupabaseId=null;auth=null;
   }
@@ -1019,6 +1063,7 @@ async function fazerLogin(e){
 
 async function bloquearApp(){
   clearTimeout(lockTimer);
+  pararRealtime();
   try{await sb.auth.signOut();}catch(_e){}
   usuarioSupabaseId=null;auth=null;
   document.getElementById("loginCPF").value="";
@@ -1060,6 +1105,7 @@ function toggleSenha(id,btn){
   btn.setAttribute("title",mostrar ? "Ocultar senha" : "Mostrar senha");
 }
 async function prepararAuth(){
+  pararRealtime();
   try{await sb.auth.signOut();}catch(_e){}
   usuarioSupabaseId=null;auth=null;
   mostrarTelaLogin();
