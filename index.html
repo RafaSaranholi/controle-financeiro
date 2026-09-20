@@ -79,6 +79,9 @@ header{display:flex;justify-content:space-between;align-items:center;gap:15px;ma
 #scanner.scanner-fullscreen-mode .scan-result .alert{display:none!important}
 #scanner.scanner-fullscreen-mode #reader:after{content:"";position:absolute;left:5%;right:5%;top:31%;height:38%;border:2px solid rgba(255,255,255,.92);border-radius:12px;box-shadow:0 0 0 9999px rgba(0,0,0,.22);pointer-events:none}
 #scanner.scanner-fullscreen-mode .scan-close{display:flex;z-index:10}
+#scanner.scanner-fullscreen-mode .scan-flash{display:flex;position:absolute;top:22px;left:22px;z-index:10;width:48px;height:48px;align-items:center;justify-content:center;border:1px solid rgba(255,255,255,.28);border-radius:50%;background:rgba(8,16,29,.68);backdrop-filter:blur(6px);color:#fff;font-size:23px;box-shadow:0 4px 18px rgba(0,0,0,.35)}
+#scanner.scanner-fullscreen-mode .scan-flash.active{background:rgba(245,158,11,.9);border-color:rgba(255,255,255,.55);color:#111827}
+#scanner.scanner-fullscreen-mode .scan-flash:disabled{opacity:.45;cursor:not-allowed}
 
 </style>
 
@@ -232,6 +235,7 @@ header{display:flex;justify-content:space-between;align-items:center;gap:15px;ma
 <section id="scanner" class="section">
 <div class="panel">
 <button type="button" class="scan-close" onclick="fecharScannerTelaCheia()" aria-label="Fechar leitor" title="Fechar leitor">×</button>
+<button type="button" id="btnFlash" class="scan-flash" onclick="alternarFlash()" aria-label="Ativar flash" title="Ativar flash">⚡</button>
 <h2>📷 Leitor de código de barras / QR Code</h2>
 <p class="small">Aponte a câmera para o código do boleto. O sistema tentará identificar o código e preencher os dados disponíveis.</p>
 
@@ -714,6 +718,8 @@ async function limparTudo(){
 let scanner=null;
 let scannerRunning=false;
 let ultimoCodigo="";
+let flashAtivo=false;
+let cameraTrack=null;
 
 function abrirScannerTelaCheia(){
   const sec=document.getElementById("scanner");
@@ -757,6 +763,14 @@ async function iniciarScanner(){
       await leituraConcluida(decodedText);
     },()=>{});
     scannerRunning=true;
+    flashAtivo=false;
+    cameraTrack=null;
+    const video=document.querySelector("#reader video");
+    if(video && video.srcObject){
+      const tracks=video.srcObject.getVideoTracks();
+      if(tracks && tracks.length) cameraTrack=tracks[0];
+    }
+    atualizarBotaoFlash();
   }catch(e){
     scannerRunning=false;
     scanStatus.className="alert red";
@@ -765,12 +779,65 @@ async function iniciarScanner(){
   }
 }
 
+function obterCameraTrack(){
+  if(cameraTrack && cameraTrack.readyState==="live") return cameraTrack;
+  const video=document.querySelector("#reader video");
+  if(video && video.srcObject){
+    const tracks=video.srcObject.getVideoTracks();
+    if(tracks && tracks.length){ cameraTrack=tracks[0]; return cameraTrack; }
+  }
+  return null;
+}
+
+function atualizarBotaoFlash(){
+  const btn=document.getElementById("btnFlash");
+  if(!btn) return;
+  const track=obterCameraTrack();
+  const caps=track && typeof track.getCapabilities==="function" ? track.getCapabilities() : {};
+  const disponivel=!!(caps && caps.torch);
+  btn.disabled=!disponivel;
+  btn.classList.toggle("active",flashAtivo);
+  btn.textContent=flashAtivo?"🔦":"⚡";
+  btn.title=disponivel?(flashAtivo?"Desativar flash":"Ativar flash"):"Flash não disponível neste dispositivo/navegador";
+  btn.setAttribute("aria-label",btn.title);
+}
+
+async function alternarFlash(){
+  const track=obterCameraTrack();
+  if(!track){ atualizarBotaoFlash(); return; }
+  try{
+    const caps=typeof track.getCapabilities==="function" ? track.getCapabilities() : {};
+    if(!caps.torch){
+      const btn=document.getElementById("btnFlash");
+      if(btn){ btn.title="Flash não disponível neste dispositivo/navegador"; }
+      return;
+    }
+    flashAtivo=!flashAtivo;
+    await track.applyConstraints({advanced:[{torch:flashAtivo}]});
+    atualizarBotaoFlash();
+  }catch(e){
+    flashAtivo=!flashAtivo;
+    atualizarBotaoFlash();
+    console.warn("Não foi possível alternar o flash:",e);
+  }
+}
+
+async function desligarFlash(){
+  const track=obterCameraTrack();
+  if(track && flashAtivo){
+    try{ await track.applyConstraints({advanced:[{torch:false}]}); }catch(e){}
+  }
+  flashAtivo=false;
+}
+
 async function leituraConcluida(code){
   // Para imediatamente a câmera e volta à tela de lançamentos.
   try{
+    await desligarFlash();
     if(scanner && scannerRunning){ await scanner.stop(); scanner.clear(); }
   }catch(e){}
   scannerRunning=false;
+  cameraTrack=null;
   fecharScannerTelaCheia();
 
   const info=interpretarCodigo(code);
@@ -802,9 +869,11 @@ async function leituraConcluida(code){
 
 async function pararScanner(){
   try{
+    await desligarFlash();
     if(scanner && scannerRunning){ await scanner.stop(); scanner.clear(); }
   }catch(e){}
   scannerRunning=false;
+  cameraTrack=null;
   fecharScannerTelaCheia();
 }
 
