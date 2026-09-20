@@ -1008,8 +1008,16 @@ async function leituraConcluida(code){
   if(desc) desc.value=info.descricao || "Boleto / conta escaneada";
   if(val) val.value=info.valor!=null ? Number(info.valor).toFixed(2) : "";
   if(venc) venc.value=info.vencimento || "";
-  if(forma) forma.value="Boleto";
-  if(obs) obs.value="Código lido: "+code;
+  if(forma) forma.value=info.forma || "Boleto";
+  if(obs){
+    let detalhes="Código lido: "+code;
+    if(info.tipo==="qr-pix") detalhes += " | QR Code PIX";
+    if(info.pixUrl) detalhes += " | URL: "+info.pixUrl;
+    if(info.chavePix) detalhes += " | Chave PIX: "+info.chavePix;
+    if(info.nomePix) detalhes += " | Beneficiário: "+info.nomePix;
+    if(info.vencimentoIndisponivel) detalhes += " | Vencimento não informado no QR Code";
+    obs.value=detalhes;
+  }
 
   // Salva automaticamente assim que a leitura for concluída.
   // O usuário não precisa apertar outro botão.
@@ -1025,9 +1033,9 @@ async function leituraConcluida(code){
     vencimento:info.vencimento || "",
     pagamento:"",
     status:"pendente",
-    forma:"Boleto",
+    forma:info.forma || "Boleto",
     conta:"",
-    obs:"Código lido: "+code
+    obs:"Código lido: "+code + (info.tipo==="qr-pix" ? " | QR Code PIX" : "")
   });
   try{ await save(); }catch(e){ console.error("Erro ao salvar boleto lido:",e); }
   render();
@@ -1059,11 +1067,47 @@ async function pararScanner(){
 }
 
 function interpretarCodigo(code){
-  const digits=String(code||"").replace(/\D/g,"");
-  let valor=null, vencimento="", tipo="", descricao="Boleto / conta escaneada";
+  const texto=String(code||"").trim();
+  const digits=texto.replace(/\D/g,"");
+  let valor=null, vencimento="", tipo="", descricao="Boleto / conta escaneada", forma="Boleto";
+  let pixUrl="", chavePix="", nomePix="", vencimentoIndisponivel=false;
+
+  // QR Code PIX / BR Code (EMV). É o caso do QR verde "PIX - Pague Aqui"
+  // presente em muitas contas de energia, água, telefone etc.
+  if(/^000201/.test(texto)){
+    tipo="qr-pix";
+    forma="Pix";
+    const pix=interpretarPixPayload(texto);
+    valor=pix.valor;
+    nomePix=pix.nome || "";
+    chavePix=pix.chave || "";
+    pixUrl=pix.url || "";
+    vencimento=pix.vencimento || "";
+    vencimentoIndisponivel=!vencimento;
+
+    // O nome do recebedor (campo 59) é a informação mais confiável
+    // para preencher automaticamente a descrição do lançamento.
+    if(nomePix) descricao=nomePix;
+    else descricao="Pagamento PIX / conta escaneada";
+
+    return {valor,vencimento,tipo,descricao,forma,pixUrl,chavePix,nomePix,vencimentoIndisponivel};
+  }
+
+  // QR que contém uma URL, mesmo quando não começa pelo padrão 000201.
+  if(/^https?:\/\//i.test(texto)){
+    tipo="qr";
+    forma="Pix";
+    pixUrl=texto;
+    descricao="Pagamento PIX / conta escaneada";
+    const extra=extrairDadosDaUrlPix(texto);
+    if(extra.valor!=null) valor=extra.valor;
+    if(extra.vencimento) vencimento=extra.vencimento;
+    if(extra.nome) descricao=extra.nome;
+    vencimentoIndisponivel=!vencimento;
+    return {valor,vencimento,tipo,descricao,forma,pixUrl,chavePix,nomePix,vencimentoIndisponivel};
+  }
 
   // Boleto bancário: código de barras com 44 dígitos.
-  // O primeiro dígito diferente de 8 identifica os boletos bancários.
   if(digits.length===44 && digits[0]!=="8"){
     tipo="boleto-bancario";
     const fator=digits.slice(5,9);
@@ -1084,7 +1128,6 @@ function interpretarCodigo(code){
   }
 
   // Arrecadação/concessionárias: código de barras de 44 dígitos iniciado por 8.
-  // O valor depende do terceiro dígito (referência).
   if(digits.length===44 && digits[0]==="8"){
     tipo="arrecadacao";
     const referencia=digits[2];
@@ -1095,11 +1138,102 @@ function interpretarCodigo(code){
     }
   }
 
-  // QR Code PIX/URL: preserva o conteúdo; o valor pode estar no payload,
-  // mas só é preenchido quando for possível interpretar com segurança.
-  if(/^https?:\/\//i.test(code) || /^000201/i.test(digits)) tipo="qr";
+  return {valor,vencimento,tipo,descricao,forma,pixUrl,chavePix,nomePix,vencimentoIndisponivel};
+}
 
-  return {valor,vencimento,tipo,descricao};
+// Lê o padrão TLV do BR Code/PIX.
+// Exemplo: 59 10 NOME... 54 05 12.34 60 08 SAO PAULO...
+function interpretarPixPayload(payload){
+  const campos=lerTLV(payload);
+  let valor=null, nome="", chave="", url="", vencimento="";
+
+  if(campos[54] && /^\d+(\.\d+)?$/.test(campos[54])){
+    valor=Number(campos[54]);
+  }
+  if(campos[59]) nome=limparTextoPix(campos[59]);
+
+  // Merchant Account Information (26 a 51). No PIX, normalmente o campo 26
+  // contém o GUI e a chave ou uma URL para cobrança dinâmica.
+  for(const id of [26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51]){
+    if(!campos[id]) continue;
+    const sub=lerTLV(campos[id]);
+    if(sub[25]) url=String(sub[25]).trim();
+    if(sub[01]) chave=String(sub[1]).trim();
+    if(sub[00] && !chave && !url && !/^BR\.GOV\.BCB\.PIX$/i.test(sub[0])) chave=String(sub[0]).trim();
+  }
+
+  // Algumas implementações colocam a URL diretamente no payload.
+  if(!url){
+    const m=payload.match(/https?:\/\/[^\\s\\x00]+/i);
+    if(m) url=m[0].replace(/[\\x00]+$/g,"");
+  }
+
+  // Dados adicionais podem aparecer no campo 62 (Additional Data Field Template).
+  // O subcampo 05 é o TXID. Ele não representa vencimento.
+  // Vencimento só é preenchido se o próprio payload trouxer explicitamente
+  // uma data em um campo conhecido; o padrão PIX não obriga o QR a carregar
+  // a data de vencimento da conta.
+  if(campos[62]){
+    const add=lerTLV(campos[62]);
+    if(add[50]) vencimento=normalizarData(add[50]);
+  }
+
+  // Para QR dinâmico, a URL pode apontar para uma cobrança cujo valor e demais
+  // dados são consultados posteriormente. Não inventamos esses dados.
+  if(url){
+    const extra=extrairDadosDaUrlPix(url);
+    if(valor==null && extra.valor!=null) valor=extra.valor;
+    if(!vencimento && extra.vencimento) vencimento=extra.vencimento;
+    if(!nome && extra.nome) nome=extra.nome;
+  }
+
+  return {valor,nome,chave,url,vencimento};
+}
+
+function lerTLV(texto){
+  const out={};
+  let i=0;
+  while(i+4<=texto.length){
+    const id=texto.slice(i,i+2);
+    const tam=parseInt(texto.slice(i+2,i+4),10);
+    if(!/^\d{2}$/.test(id) || !Number.isFinite(tam) || tam<0) break;
+    const inicio=i+4, fim=inicio+tam;
+    if(fim>texto.length) break;
+    out[parseInt(id,10)]=texto.slice(inicio,fim);
+    i=fim;
+  }
+  return out;
+}
+
+function limparTextoPix(v){
+  return String(v||"").replace(/\\x[0-9A-Fa-f]{2}/g,"").replace(/\\s+/g," ").trim();
+}
+
+function normalizarData(v){
+  const s=String(v||"").trim();
+  let m=s.match(/^(\\d{4})[-\\/](\\d{2})[-\\/](\\d{2})$/);
+  if(m) return `${m[1]}-${m[2]}-${m[3]}`;
+  m=s.match(/^(\\d{2})[-\\/](\\d{2})[-\\/](\\d{4})$/);
+  if(m) return `${m[3]}-${m[2]}-${m[1]}`;
+  return "";
+}
+
+function extrairDadosDaUrlPix(url){
+  let valor=null, vencimento="", nome="";
+  try{
+    const u=new URL(url);
+    const params=u.searchParams;
+    for(const k of ["valor","amount","value","vlr","v"]){
+      if(params.has(k)){ const n=Number(String(params.get(k)).replace(",",".")); if(Number.isFinite(n)&&n>0){valor=n;break;} }
+    }
+    for(const k of ["vencimento","dueDate","due_date","dataVencimento","date"]){
+      if(params.has(k)){ const d=normalizarData(params.get(k)); if(d){vencimento=d;break;} }
+    }
+    for(const k of ["nome","name","merchantName","beneficiario"]){
+      if(params.has(k)){ const n=limparTextoPix(params.get(k)); if(n){nome=n;break;} }
+    }
+  }catch(e){}
+  return {valor,vencimento,nome};
 }
 
 function dataVencimentoBoleto(fator){
