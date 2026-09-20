@@ -356,7 +356,7 @@ async function sincronizarSnapshot(snapshot){
     usuario_id:usuarioSupabaseId,
     dados:payload,
     updated_at:new Date().toISOString()
-  },{onConflict:'usuario_id'}).select('usuario_id').single();
+  },{onConflict:'usuario_id'});
 
   if(error)throw new Error(error.message || 'Erro desconhecido ao salvar na nuvem.');
   return true;
@@ -369,9 +369,9 @@ function save(){
 
   const snapshot=JSON.stringify(db);
   const tarefa=sincronizacaoFila.then(()=>sincronizarSnapshot(snapshot));
+  // Mantém a fila viva para o próximo salvamento, mas não engole o erro da tarefa atual.
   sincronizacaoFila=tarefa.catch(err=>{
     console.error('Erro ao sincronizar dados financeiros:',err);
-    return false;
   });
   return tarefa;
 }
@@ -690,6 +690,16 @@ function delRec(id){if(confirm("Excluir esta recorrência?")){db.recorrentes=db.
 function saveConfig(){db.config.nomeCasa=nomeCasa.value;db.config.limiteAlerta=Number(limiteAlerta.value||80);db.config.catPadrao=catPadrao.value;save()}
 function exportar(){let blob=new Blob([JSON.stringify(db,null,2)],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="backup-financeiro-"+isoToday()+".json";a.click();URL.revokeObjectURL(a.href)}
 function importar(input){let f=input.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{try{let x=JSON.parse(r.result);if(!x.lancamentos||!x.recorrentes)throw 0;if(confirm("Importar este backup e substituir os dados atuais?")){db=x;save();location.reload()}}catch(e){alert("Arquivo de backup inválido.")}};r.readAsText(f)}
+async function sincronizarAgora(){
+  if(!usuarioSupabaseId)return;
+  try{
+    await sincronizarSnapshot(JSON.stringify(db));
+  }catch(err){
+    console.error('Falha na sincronização:',err);
+  }
+}
+window.addEventListener('online',sincronizarAgora);
+
 async function limparTudo(){
   if(!confirm("ATENÇÃO: isso apagará todos os lançamentos, recorrências e orçamentos desta conta. Continuar?"))return;
   db=dbVazia();
@@ -876,22 +886,31 @@ async function carregarPerfil(userId){
   if(error)throw error;
   return data;
 }
+function temDadosNoDb(obj){
+  const x=normalizarDb(obj);
+  return x.lancamentos.length>0 || x.recorrentes.length>0 || Object.keys(x.orcamento||{}).some(k=>Number(x.orcamento[k]||0)!==0) || !!(x.config && x.config.nomeCasa && x.config.nomeCasa!=="Minha Residência");
+}
 async function carregarDadosRemotos(){
   const {data,error}=await sb.from('dados_financeiros').select('dados').eq('usuario_id',usuarioSupabaseId).maybeSingle();
   if(error)throw error;
+
   if(data && data.dados){
-    db=normalizarDb(data.dados);
+    const remoto=normalizarDb(data.dados);
+    // Se a nuvem ainda estiver vazia, nunca apague dados locais existentes.
+    if(!temDadosNoDb(remoto) && temDadosLocais()){
+      await sincronizarSnapshot(JSON.stringify(db));
+      return true;
+    }
+    db=remoto;
     localStorage.setItem(KEY,JSON.stringify(db));
     return true;
   }
+
   if(temDadosLocais()){
-    const enviar=confirm("Há dados financeiros salvos neste dispositivo e esta conta ainda não possui dados na nuvem.\n\nDeseja enviar esses dados para esta conta?");
-    if(enviar){
-      save();
-      await sincronizacaoFila;
-      return true;
-    }
+    await sincronizarSnapshot(JSON.stringify(db));
+    return true;
   }
+
   db=dbVazia();
   localStorage.setItem(KEY,JSON.stringify(db));
   await sincronizarSnapshot(JSON.stringify(db));
