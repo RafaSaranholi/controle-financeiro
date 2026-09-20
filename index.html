@@ -48,6 +48,7 @@ header{display:flex;justify-content:space-between;align-items:center;gap:15px;ma
 @media(max-width:650px){.app{padding:12px}.cards{grid-template-columns:repeat(2,1fr)}.formgrid,.filters{grid-template-columns:1fr}.span2{grid-column:auto}.card .value{font-size:20px}header{align-items:flex-start;flex-direction:column}}
 </style>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
 <style>
 .scan-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
@@ -319,10 +320,50 @@ Esta proteção é adequada para a versão local/PWA. Quando transformarmos o si
 
 <script>
 const KEY="financeiro_residencial_v1";
+const SUPABASE_URL="https://thxtmhaahyblqfkwwqsn.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY="sb_publishable_waDTXx-X4FcJvKCkOuYrHg_e-kO8IEv";
+const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}});
+let usuarioSupabaseId=null;
+let sincronizacaoFila=Promise.resolve();
 const CATS=["Moradia","Alimentação","Supermercado","Transporte","Energia","Água","Internet/Telefone","Saúde","Educação","Lazer","Compras","Impostos","Seguros","Assinaturas","Pets","Filhos","Manutenção","Dívidas","Investimentos","Outros"];
 const RECEITA_CATS=["Salário","Adiantamento","Hora extra","Serviço/Freelance","Venda","Comissão","Benefício","Aluguel recebido","Rendimento/Investimento","Reembolso","Pensão/Recebimento","Outros"];
-let db=JSON.parse(localStorage.getItem(KEY)||"null")||{lancamentos:[],recorrentes:[],orcamento:{},config:{nomeCasa:"Minha Residência",limiteAlerta:80,catPadrao:"Outros"}};
-function save(){localStorage.setItem(KEY,JSON.stringify(db));}
+let db=normalizarDb(JSON.parse(localStorage.getItem(KEY)||"null"));
+function dbVazia(){return {lancamentos:[],recorrentes:[],orcamento:{},config:{nomeCasa:"Minha Residência",limiteAlerta:80,catPadrao:"Outros"}};}
+function normalizarDb(obj){
+  const base=dbVazia();
+  const x=(obj&&typeof obj==='object')?obj:{};
+  return {
+    lancamentos:Array.isArray(x.lancamentos)?x.lancamentos:[],
+    recorrentes:Array.isArray(x.recorrentes)?x.recorrentes:[],
+    orcamento:(x.orcamento&&typeof x.orcamento==='object')?x.orcamento:{},
+    config:{...base.config,...((x.config&&typeof x.config==='object')?x.config:{})}
+  };
+}
+function temDadosLocais(){
+  return db.lancamentos.length>0 || db.recorrentes.length>0 || Object.keys(db.orcamento||{}).some(k=>Number(db.orcamento[k]||0)!==0);
+}
+async function sincronizarSnapshot(snapshot){
+  if(!usuarioSupabaseId)return;
+  try{
+    const payload=JSON.parse(snapshot);
+    const {error}=await sb.from('dados_financeiros').upsert({
+      usuario_id:usuarioSupabaseId,
+      dados:payload,
+      updated_at:new Date().toISOString()
+    },{onConflict:'usuario_id'});
+    if(error)throw error;
+  }catch(err){
+    console.error('Erro ao sincronizar dados financeiros:',err);
+  }
+}
+function save(){
+  db=normalizarDb(db);
+  localStorage.setItem(KEY,JSON.stringify(db));
+  if(usuarioSupabaseId){
+    const snapshot=JSON.stringify(db);
+    sincronizacaoFila=sincronizacaoFila.then(()=>sincronizarSnapshot(snapshot)).catch(err=>console.error(err));
+  }
+}
 function money(v){return Number(v||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});}
 function isoToday(){return new Date().toISOString().slice(0,10)}
 function monthNow(){return isoToday().slice(0,7)}
@@ -632,7 +673,15 @@ function delRec(id){if(confirm("Excluir esta recorrência?")){db.recorrentes=db.
 function saveConfig(){db.config.nomeCasa=nomeCasa.value;db.config.limiteAlerta=Number(limiteAlerta.value||80);db.config.catPadrao=catPadrao.value;save()}
 function exportar(){let blob=new Blob([JSON.stringify(db,null,2)],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="backup-financeiro-"+isoToday()+".json";a.click();URL.revokeObjectURL(a.href)}
 function importar(input){let f=input.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{try{let x=JSON.parse(r.result);if(!x.lancamentos||!x.recorrentes)throw 0;if(confirm("Importar este backup e substituir os dados atuais?")){db=x;save();location.reload()}}catch(e){alert("Arquivo de backup inválido.")}};r.readAsText(f)}
-function limparTudo(){if(confirm("ATENÇÃO: isso apagará todos os lançamentos, recorrências e orçamentos deste navegador. Continuar?")){localStorage.removeItem(KEY);location.reload()}}
+async function limparTudo(){
+  if(!confirm("ATENÇÃO: isso apagará todos os lançamentos, recorrências e orçamentos desta conta. Continuar?"))return;
+  db=dbVazia();
+  localStorage.setItem(KEY,JSON.stringify(db));
+  if(usuarioSupabaseId){
+    await sincronizarSnapshot(JSON.stringify(db));
+  }
+  location.reload();
+}
 
 let scanner=null;
 let scannerRunning=false;
@@ -747,7 +796,7 @@ async function copiarCodigo(){
 }
 
 
-/* ================= SEGURANÇA LOCAL ================= */
+/* ================= SEGURANÇA / SUPABASE ================= */
 const AUTH_KEY="financeiro_residencial_auth_v2";
 let auth=null;
 let tentativas=0,bloqueioAte=0,lockTimer=null;
@@ -772,49 +821,15 @@ function cpfValido(cpf){
   r=(soma*10)%11;if(r===10)r=0;
   return r===Number(d[10]);
 }
-async function hashSenha(senha){
-  try{
-    if(window.crypto && crypto.subtle){
-      const buf=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(senha));
-      return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,"0")).join("");
-    }
-  }catch(err){ console.warn("SHA-256 indisponível; usando hash local de compatibilidade.",err); }
-  let h1=2166136261,h2=16777619;
-  const txt=String(senha);
-  for(let i=0;i<txt.length;i++){
-    const c=txt.charCodeAt(i);
-    h1 ^= c; h1=Math.imul(h1,16777619);
-    h2 ^= (c+i); h2=Math.imul(h2,2246822519);
-  }
-  return (h1>>>0).toString(16).padStart(8,"0")+(h2>>>0).toString(16).padStart(8,"0");
+function cpfEmail(cpf){
+  return `cpf.${onlyDigits(cpf)}@thxtmhaahyblqfkwwqsn.supabase.co`;
 }
-function getUsers(){
-  try{
-    const raw=JSON.parse(localStorage.getItem(AUTH_KEY)||"null");
-    if(!raw)return [];
-    if(Array.isArray(raw.users)){
-      return raw.users.filter(u=>u&&typeof u==="object"&&u.hash).map(u=>({
-        cpf:formatCPF(u.cpf||""),
-        nome:String(u.nome||u.usuario||""),
-        hash:String(u.hash),
-        autoLock:Number(u.autoLock??5)
-      }));
-    }
-    if(raw.usuario&&raw.hash){
-      return [{cpf:formatCPF(raw.cpf||""),nome:String(raw.usuario),hash:String(raw.hash),autoLock:Number(raw.autoLock??5)}];
-    }
-  }catch(err){ console.error("Falha ao ler os usuários locais",err); }
-  return [];
-}
-function saveUsers(users){
-  try{
-    localStorage.setItem(AUTH_KEY,JSON.stringify({version:3,users:Array.isArray(users)?users:[]}));
-    return true;
-  }catch(err){
-    console.error("Falha ao salvar os usuários locais",err);
-    alert("Não foi possível salvar o cadastro neste navegador. Verifique se o armazenamento local está habilitado.");
-    return false;
-  }
+function authMsg(error){
+  const m=String(error?.message||"");
+  if(/already registered|already exists/i.test(m))return "Este CPF já está cadastrado.";
+  if(/invalid login credentials/i.test(m))return "CPF ou senha incorretos.";
+  if(/password/i.test(m)&&/at least/i.test(m))return "A senha não atende ao tamanho mínimo configurado.";
+  return m||"Não foi possível concluir a operação.";
 }
 function mostrarTelaLogin(){
   const login=document.getElementById("loginScreen");
@@ -833,34 +848,72 @@ function abrirCadastro(){
     const form=document.getElementById("cadastroForm");
     if(form)form.reset();
     const erro=document.getElementById("cadError");
-    if(erro)erro.style.display="none";
+    if(erro){erro.style.display="none";erro.textContent="";}
     setTimeout(()=>{const c=document.getElementById("cadCPF");if(c)c.focus();},50);
   }
 }
 function fecharCadastro(){ mostrarTelaLogin(); }
+
+async function carregarPerfil(userId){
+  const {data,error}=await sb.from('perfis').select('id,cpf,nome').eq('id',userId).maybeSingle();
+  if(error)throw error;
+  return data;
+}
+async function carregarDadosRemotos(){
+  const {data,error}=await sb.from('dados_financeiros').select('dados').eq('usuario_id',usuarioSupabaseId).maybeSingle();
+  if(error)throw error;
+  if(data && data.dados){
+    db=normalizarDb(data.dados);
+    localStorage.setItem(KEY,JSON.stringify(db));
+    return true;
+  }
+  if(temDadosLocais()){
+    const enviar=confirm("Há dados financeiros salvos neste dispositivo e esta conta ainda não possui dados na nuvem.\n\nDeseja enviar esses dados para esta conta?");
+    if(enviar){
+      save();
+      await sincronizacaoFila;
+      return true;
+    }
+  }
+  db=dbVazia();
+  localStorage.setItem(KEY,JSON.stringify(db));
+  await sincronizarSnapshot(JSON.stringify(db));
+  return false;
+}
+
 async function cadastrarUsuario(e){
   if(e&&e.preventDefault)e.preventDefault();
   const erro=document.getElementById("cadError");
   try{
+    erro.style.display="none";
     const cpf=formatCPF(document.getElementById("cadCPF").value);
     const nome=document.getElementById("cadNome").value.trim();
     const senha=document.getElementById("cadPass").value;
-    erro.style.display="none";
 
     if(!cpfValido(cpf)){erro.style.display="block";erro.textContent="Informe um CPF válido com 11 números.";return false;}
     if(nome.length<3){erro.style.display="block";erro.textContent="Informe o nome completo.";return false;}
     if(senha.length<6){erro.style.display="block";erro.textContent="A senha precisa ter pelo menos 6 caracteres.";return false;}
 
-    const users=getUsers();
-    const cpfDigits=onlyDigits(cpf);
-    if(users.some(u=>onlyDigits(u.cpf)===cpfDigits)){
-      erro.style.display="block";erro.textContent="Este CPF já está cadastrado.";return false;
+    const email=cpfEmail(cpf);
+    const {data,error}=await sb.auth.signUp({email,password:senha});
+    if(error)throw error;
+    if(!data.user){throw new Error("Não foi possível criar a conta.");}
+
+    const {error:perfilError}=await sb.from('perfis').insert({id:data.user.id,cpf,nome});
+    if(perfilError)throw perfilError;
+
+    usuarioSupabaseId=data.user.id;
+    auth={id:data.user.id,cpf,nome};
+
+    if(temDadosLocais()){
+      const enviar=confirm("Existe um financeiro salvo neste dispositivo. Deseja enviar esses dados para a nova conta?");
+      if(!enviar){db=dbVazia();localStorage.setItem(KEY,JSON.stringify(db));}
     }
+    save();
+    await sincronizacaoFila;
 
-    const novo={cpf,nome,hash:await hashSenha(senha),autoLock:5};
-    users.push(novo);
-    if(!saveUsers(users))return false;
-
+    await sb.auth.signOut();
+    usuarioSupabaseId=null;auth=null;
     mostrarTelaLogin();
     document.getElementById("loginCPF").value=cpf;
     document.getElementById("loginPass").value="";
@@ -871,46 +924,67 @@ async function cadastrarUsuario(e){
   }catch(err){
     console.error("Erro ao cadastrar usuário",err);
     erro.style.display="block";
-    erro.textContent="Não foi possível concluir o cadastro.";
+    erro.textContent=authMsg(err);
+    try{await sb.auth.signOut();}catch(_e){}
+    usuarioSupabaseId=null;auth=null;
     return false;
   }
 }
+
 async function fazerLogin(e){
   if(e&&e.preventDefault)e.preventDefault();
-  const agora=Date.now(),erro=document.getElementById("loginError");
-  if(bloqueioAte>agora){
-    erro.style.display="block";erro.textContent="Muitas tentativas. Aguarde "+Math.ceil((bloqueioAte-agora)/1000)+" segundos.";return false;
+  const erro=document.getElementById("loginError");
+  if(bloqueioAte>Date.now()){
+    erro.style.display="block";erro.textContent="Muitas tentativas. Aguarde "+Math.ceil((bloqueioAte-Date.now())/1000)+" segundos.";
+    return false;
   }
   const cpf=formatCPF(document.getElementById("loginCPF").value);
-  const s=document.getElementById("loginPass").value;
-  const users=getUsers();
-  const h=await hashSenha(s);
-  const user=users.find(x=>onlyDigits(x.cpf)===onlyDigits(cpf)&&x.hash===h);
+  const senha=document.getElementById("loginPass").value;
+  if(!cpfValido(cpf)){erro.style.display="block";erro.textContent="Informe um CPF válido.";return false;}
 
-  if(user){
+  try{
+    const {data,error}=await sb.auth.signInWithPassword({email:cpfEmail(cpf),password:senha});
+    if(error)throw error;
+    if(!data.user)throw new Error("Não foi possível autenticar.");
+
+    const perfil=await carregarPerfil(data.user.id);
+    if(!perfil)throw new Error("Perfil do usuário não encontrado.");
+
+    usuarioSupabaseId=data.user.id;
+    auth={...perfil};
+    const autoLock=Number(localStorage.getItem("financeiro_autolock_"+onlyDigits(cpf))||5);
+    auth.autoLock=autoLock;
+
+    await carregarDadosRemotos();
     tentativas=0;
-    auth=user;
     document.getElementById("loginScreen").style.display="none";
     document.getElementById("cadastroScreen").style.display="none";
-    document.getElementById("currentUser").textContent="👤 "+user.nome;
-    document.getElementById("secUser").value=user.nome;
-    document.getElementById("autoLock").value=user.autoLock??5;
-    iniciarAutoLock();
+    document.getElementById("currentUser").textContent="👤 "+perfil.nome;
+    document.getElementById("secUser").value=perfil.nome;
+    document.getElementById("autoLock").value=autoLock;
     document.getElementById("loginPass").value="";
     erro.style.display="none";
-  }else{
+    render();
+  }catch(err){
+    console.error("Erro ao entrar",err);
     tentativas++;
     erro.style.display="block";
-    erro.textContent="CPF ou senha incorretos.";
+    erro.textContent=authMsg(err);
     if(tentativas>=5){
-      bloqueioAte=Date.now()+30000;tentativas=0;
+      bloqueioAte=Date.now()+30000;
+      tentativas=0;
       erro.textContent="5 tentativas incorretas. Acesso bloqueado por 30 segundos.";
     }
+    try{await sb.auth.signOut();}catch(_e){}
+    usuarioSupabaseId=null;auth=null;
   }
   return false;
 }
-function bloquearApp(){
+
+async function bloquearApp(){
   clearTimeout(lockTimer);
+  try{await sb.auth.signOut();}catch(_e){}
+  usuarioSupabaseId=null;auth=null;
   document.getElementById("loginCPF").value="";
   document.getElementById("loginPass").value="";
   document.getElementById("loginError").style.display="none";
@@ -919,7 +993,7 @@ function bloquearApp(){
 function iniciarAutoLock(){
   clearTimeout(lockTimer);
   const min=Number(auth?.autoLock||0);
-  if(min>0)lockTimer=setTimeout(bloquearApp,min*60000);
+  if(min>0)lockTimer=setTimeout(()=>{bloquearApp();},min*60000);
 }
 function atividadeUsuario(){
   if(document.getElementById("loginScreen").style.display==="none"&&document.getElementById("cadastroScreen").style.display==="none")iniciarAutoLock();
@@ -928,16 +1002,15 @@ async function alterarSenha(){
   const n=document.getElementById("novaSenha").value,c=document.getElementById("confSenha").value;
   if(!n||n.length<6)return alert("A nova senha precisa ter pelo menos 6 caracteres.");
   if(n!==c)return alert("A confirmação da senha não confere.");
-  const users=getUsers(),idx=users.findIndex(x=>onlyDigits(x.cpf)===onlyDigits(auth?.cpf));
-  if(idx<0)return alert("Usuário não encontrado.");
-  users[idx].hash=await hashSenha(n);auth=users[idx];saveUsers(users);
+  const {error}=await sb.auth.updateUser({password:n});
+  if(error)return alert(authMsg(error));
   document.getElementById("novaSenha").value="";document.getElementById("confSenha").value="";
   alert("Senha alterada com sucesso.");
 }
 function salvarAutoLock(){
   const n=Math.max(0,Math.min(240,Number(document.getElementById("autoLock").value||5)));
-  const users=getUsers(),idx=users.findIndex(x=>onlyDigits(x.cpf)===onlyDigits(auth?.cpf));
-  if(idx>=0){users[idx].autoLock=n;auth=users[idx];saveUsers(users);}
+  if(auth?.cpf)localStorage.setItem("financeiro_autolock_"+onlyDigits(auth.cpf),String(n));
+  if(auth)auth.autoLock=n;
   iniciarAutoLock();
   alert(n===0?"Bloqueio automático desativado.":"Bloqueio automático configurado para "+n+" minutos.");
 }
@@ -950,7 +1023,9 @@ function toggleSenha(id,btn){
   btn.setAttribute("aria-label",mostrar ? "Ocultar senha" : "Mostrar senha");
   btn.setAttribute("title",mostrar ? "Ocultar senha" : "Mostrar senha");
 }
-function prepararAuth(){
+async function prepararAuth(){
+  try{await sb.auth.signOut();}catch(_e){}
+  usuarioSupabaseId=null;auth=null;
   mostrarTelaLogin();
 }
 function inicializarSegurancaUI(){
