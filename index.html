@@ -50,6 +50,7 @@ header{display:flex;justify-content:space-between;align-items:center;gap:15px;ma
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <style>
 .scan-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 .scanner{background:#08101d;border:1px solid var(--line);border-radius:14px;overflow:hidden;min-height:290px}
@@ -808,6 +809,7 @@ async function iniciarScanner(){
       if(tracks && tracks.length) cameraTrack=tracks[0];
     }
     atualizarBotaoFlash();
+    iniciarLeituraQRAlternativa();
   }catch(e){
     scannerRunning=false;
     scanStatus.className="alert red";
@@ -815,6 +817,49 @@ async function iniciarScanner(){
     scanStatus.innerHTML="<strong>Não foi possível iniciar a câmera.</strong><br>"+esc(String(e.message||e));
   }
 }
+
+let qrLoopAtivo=false;
+let qrCanvas=null;
+let qrCtx=null;
+
+function iniciarLeituraQRAlternativa(){
+  if(typeof jsQR!=="function" || qrLoopAtivo) return;
+  qrLoopAtivo=true;
+  if(!qrCanvas) qrCanvas=document.createElement("canvas");
+  qrCtx=qrCanvas.getContext("2d",{willReadFrequently:true});
+  executarLeituraQR();
+}
+
+function executarLeituraQR(){
+  if(!qrLoopAtivo || !scannerRunning) return;
+  const video=document.querySelector("#reader video");
+  if(!video || video.readyState<2 || !video.videoWidth){
+    requestAnimationFrame(executarLeituraQR);
+    return;
+  }
+  // Reduz a imagem mantendo a proporção para tornar a leitura mais rápida.
+  const maxW=1280;
+  const escala=Math.min(1,maxW/video.videoWidth);
+  const w=Math.max(320,Math.round(video.videoWidth*escala));
+  const h=Math.max(240,Math.round(video.videoHeight*escala));
+  if(qrCanvas.width!==w || qrCanvas.height!==h){ qrCanvas.width=w; qrCanvas.height=h; }
+  qrCtx.drawImage(video,0,0,w,h);
+  try{
+    const image=qrCtx.getImageData(0,0,w,h);
+    const result=jsQR(image.data,w,h,{inversionAttempts:"attemptBoth"});
+    if(result && result.data){
+      const texto=String(result.data).trim();
+      if(texto && texto!==ultimoCodigo){
+        qrLoopAtivo=false;
+        leituraConcluida(texto);
+        return;
+      }
+    }
+  }catch(e){}
+  requestAnimationFrame(executarLeituraQR);
+}
+
+function pararLeituraQRAlternativa(){ qrLoopAtivo=false; }
 
 function obterCameraTrack(){
   if(cameraTrack && cameraTrack.readyState==="live") return cameraTrack;
@@ -933,6 +978,7 @@ async function pararScanner(){
     if(scanner && scannerRunning){ await scanner.stop(); scanner.clear(); }
   }catch(e){}
   scannerRunning=false;
+  pararLeituraQRAlternativa();
   cameraTrack=null;
   fecharScannerTelaCheia();
 }
