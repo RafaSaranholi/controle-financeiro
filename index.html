@@ -58,6 +58,22 @@ header{display:flex;justify-content:space-between;align-items:center;gap:15px;ma
 .codebox{font-family:Consolas,monospace;font-size:13px;word-break:break-all;background:#08101d;padding:10px;border-radius:8px;border:1px solid var(--line)}
 .scan-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
 @media(max-width:800px){.scan-grid{grid-template-columns:1fr}}
+/* Leitor em tela cheia: usa praticamente todo o enquadramento da câmera,
+   sem limitar o tamanho do código de barras. */
+#scanner.scanner-fullscreen-mode{display:block;position:fixed;inset:0;z-index:5000;background:#000;padding:0;overflow:hidden}
+#scanner.scanner-fullscreen-mode>.panel{width:100%;height:100%;margin:0;padding:0;border:0;border-radius:0;background:#000;box-shadow:none;position:relative;overflow:hidden}
+#scanner.scanner-fullscreen-mode>.panel>h2,#scanner.scanner-fullscreen-mode>.panel>p{display:none}
+#scanner.scanner-fullscreen-mode .scan-grid{display:block;height:100%;position:relative}
+#scanner.scanner-fullscreen-mode .scanner{position:absolute;inset:0;min-height:0;border:0;border-radius:0;background:#000}
+#scanner.scanner-fullscreen-mode #reader{width:100%;height:100%;min-height:0}
+#scanner.scanner-fullscreen-mode #reader video{width:100%!important;height:100%!important;object-fit:cover!important}
+#scanner.scanner-fullscreen-mode .scan-result{position:absolute;left:10px;right:10px;bottom:10px;z-index:3;max-height:34vh;overflow:auto;background:rgba(8,16,29,.88);backdrop-filter:blur(8px);padding:12px;border-radius:14px}
+#scanner.scanner-fullscreen-mode .scan-result>h2{font-size:15px;margin:0 0 8px}
+#scanner.scanner-fullscreen-mode .scan-result .formgrid{gap:7px}
+#scanner.scanner-fullscreen-mode .scan-result .small[style]{display:none}
+#scanner.scanner-fullscreen-mode .scan-close{display:flex}
+.scan-close{display:none;position:absolute;right:12px;top:12px;z-index:6;width:42px;height:42px;border:1px solid rgba(255,255,255,.25);border-radius:50%;background:rgba(0,0,0,.62);color:#fff;font-size:24px;align-items:center;justify-content:center}
+@media(max-width:650px){#scanner.scanner-fullscreen-mode .scan-result{left:7px;right:7px;bottom:7px;max-height:40vh;padding:9px}#scanner.scanner-fullscreen-mode .scan-actions .btn{padding:8px 10px;font-size:12px}}
 </style>
 
 <style>
@@ -209,6 +225,7 @@ header{display:flex;justify-content:space-between;align-items:center;gap:15px;ma
 
 <section id="scanner" class="section">
 <div class="panel">
+<button type="button" class="scan-close" onclick="fecharScannerTelaCheia()" aria-label="Fechar leitor" title="Fechar leitor">×</button>
 <h2>📷 Leitor de código de barras / QR Code</h2>
 <p class="small">Aponte a câmera para o código do boleto. O sistema tentará identificar o código e preencher os dados disponíveis.</p>
 
@@ -477,7 +494,7 @@ function init(){
  document.getElementById("status").addEventListener("change",()=>atualizarCampoPagamento(true));
  document.getElementById("tipo").addEventListener("change",()=>atualizarTratamentoTipo(false));
  document.getElementById("recForm").addEventListener("submit",salvarRecorrente);
- document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>{document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));document.querySelectorAll(".section").forEach(x=>x.classList.remove("active"));b.classList.add("active");document.getElementById(b.dataset.tab).classList.add("active");if(b.dataset.tab==="dashboard")renderAnalise();if(b.dataset.tab==="orcamento")renderOrcamento();if(b.dataset.tab==="recorrentes")renderRecorrentes()});
+ document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>{if(b.dataset.tab!=="scanner" && scannerRunning)pararScanner();document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));document.querySelectorAll(".section").forEach(x=>x.classList.remove("active"));b.classList.add("active");document.getElementById(b.dataset.tab).classList.add("active");if(b.dataset.tab==="dashboard")renderAnalise();if(b.dataset.tab==="orcamento")renderOrcamento();if(b.dataset.tab==="recorrentes")renderRecorrentes()});
  render();
 }
 function statusReal(l){
@@ -715,9 +732,22 @@ let scanner=null;
 let scannerRunning=false;
 let ultimoCodigo="";
 
+function abrirScannerTelaCheia(){
+  const sec=document.getElementById("scanner");
+  if(sec) sec.classList.add("scanner-fullscreen-mode");
+  document.body.style.overflow="hidden";
+}
+
+function fecharScannerTelaCheia(){
+  const sec=document.getElementById("scanner");
+  if(sec) sec.classList.remove("scanner-fullscreen-mode");
+  document.body.style.overflow="";
+}
+
 function prepararScanner(){
   let sel=document.getElementById("scanCategoria");
   if(sel && !sel.options.length) sel.innerHTML=CATS.map(c=>`<option>${c}</option>`).join("");
+  abrirScannerTelaCheia();
   if(!scannerRunning) iniciarScanner();
 }
 
@@ -728,13 +758,36 @@ async function iniciarScanner(){
       return;
     }
     scanner = new Html5Qrcode("reader");
+    const formatos = [
+      Html5QrcodeSupportedFormats.QR_CODE,
+      Html5QrcodeSupportedFormats.CODE_128,
+      Html5QrcodeSupportedFormats.CODE_39,
+      Html5QrcodeSupportedFormats.CODE_93,
+      Html5QrcodeSupportedFormats.CODABAR,
+      Html5QrcodeSupportedFormats.EAN_13,
+      Html5QrcodeSupportedFormats.EAN_8,
+      Html5QrcodeSupportedFormats.ITF,
+      Html5QrcodeSupportedFormats.UPC_A,
+      Html5QrcodeSupportedFormats.UPC_E,
+      Html5QrcodeSupportedFormats.PDF_417,
+      Html5QrcodeSupportedFormats.DATA_MATRIX,
+      Html5QrcodeSupportedFormats.AZTEC
+    ].filter(Boolean);
     const config = {
-      fps: 10,
-      qrbox: {width: 280, height: 160},
+      fps: 15,
+      formatsToSupport: formatos,
+      qrbox: (viewfinderWidth, viewfinderHeight) => ({
+        width: Math.floor(viewfinderWidth * 0.94),
+        height: Math.floor(viewfinderHeight * 0.62)
+      }),
       aspectRatio: 1.777
     };
     await scanner.start(
-      {facingMode:"environment"},
+      {
+        facingMode:"environment",
+        width:{ideal:1920},
+        height:{ideal:1080}
+      },
       config,
       (decodedText)=>{
         if(decodedText && decodedText!==ultimoCodigo){
@@ -765,6 +818,7 @@ async function pararScanner(){
     }
   }catch(e){}
   scannerRunning=false;
+  fecharScannerTelaCheia();
 }
 
 function interpretarCodigo(code){
@@ -1118,6 +1172,7 @@ function inicializarSegurancaUI(){
   ["click","keydown","touchstart"].forEach(ev=>document.addEventListener(ev,atividadeUsuario,{passive:true}));
 }
 window.addEventListener("resize",()=>drawPie(db.lancamentos));
+document.addEventListener("keydown",e=>{if(e.key==="Escape" && document.getElementById("scanner")?.classList.contains("scanner-fullscreen-mode"))pararScanner()});
 document.querySelectorAll(".tab").forEach(b=>{
   if(b.dataset.tab==="scanner"){
     b.addEventListener("click",()=>setTimeout(prepararScanner,150));
@@ -1130,9 +1185,33 @@ prepararAuth();
 </script>
 
 <script>
+/* Atualização online automática — não é necessário reinstalar o app. */
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js').catch(() => {});
+  window.addEventListener('load', async () => {
+    const tinhaControlador = !!navigator.serviceWorker.controller;
+    try {
+      const reg = await navigator.serviceWorker.register('./sw.js', {updateViaCache:'none'});
+      await reg.update();
+      if (reg.waiting) reg.waiting.postMessage({type:'SKIP_WAITING'});
+      reg.addEventListener('updatefound', () => {
+        const novo = reg.installing;
+        if (!novo) return;
+        novo.addEventListener('statechange', () => {
+          if (novo.state === 'installed' && reg.waiting) novo && reg.waiting.postMessage({type:'SKIP_WAITING'});
+        });
+      });
+    } catch (_) {}
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!window.__recarregandoAtualizacao && tinhaControlador) {
+        window.__recarregandoAtualizacao = true;
+        window.location.reload();
+      }
+    });
+  });
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      navigator.serviceWorker.getRegistration('./').then(reg => reg && reg.update()).catch(() => {});
+    }
   });
 }
 </script>
