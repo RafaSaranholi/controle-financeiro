@@ -242,8 +242,8 @@ header{display:flex;justify-content:space-between;align-items:center;gap:15px;ma
 <button type="button" class="scan-close" onclick="fecharScannerTelaCheia()" aria-label="Fechar leitor" title="Fechar leitor">×</button>
 <button type="button" id="btnFlash" class="scan-flash" onclick="alternarFlash()" aria-label="Ativar flash" title="Ativar flash">⚡</button>
 <div id="scanGuide" class="scan-guide" aria-hidden="true"></div>
-<h2>📷 Leitor de código de barras / QR Code</h2>
-<p class="small">Aponte a câmera para o código do boleto. O sistema tentará identificar o código e preencher os dados disponíveis.</p>
+<h2>📷 Leitor universal — código de barras ou QR Code</h2>
+<p class="small">Aponte a câmera para o código de barras ou QR Code. O sistema reconhece os dois tipos na mesma tela e salva automaticamente quando a leitura for validada.</p>
 
 <div class="scan-grid">
   <div class="scanner"><div id="reader"></div></div>
@@ -749,14 +749,20 @@ async function iniciarScanner(){
     if(typeof Html5Qrcode==="undefined") throw new Error("Biblioteca do leitor não carregou.");
     scanner = new Html5Qrcode("reader");
     const formatos = [
-      Html5QrcodeSupportedFormats.QR_CODE, Html5QrcodeSupportedFormats.CODE_128,
-      Html5QrcodeSupportedFormats.CODE_39, Html5QrcodeSupportedFormats.CODE_93,
-      Html5QrcodeSupportedFormats.CODABAR, Html5QrcodeSupportedFormats.EAN_13,
-      Html5QrcodeSupportedFormats.EAN_8, Html5QrcodeSupportedFormats.ITF,
-      Html5QrcodeSupportedFormats.UPC_A, Html5QrcodeSupportedFormats.UPC_E,
-      Html5QrcodeSupportedFormats.PDF_417, Html5QrcodeSupportedFormats.DATA_MATRIX,
+      Html5QrcodeSupportedFormats.QR_CODE,
+      Html5QrcodeSupportedFormats.ITF,
+      Html5QrcodeSupportedFormats.CODE_128,
+      Html5QrcodeSupportedFormats.CODE_39,
+      Html5QrcodeSupportedFormats.CODE_93,
+      Html5QrcodeSupportedFormats.CODABAR,
+      Html5QrcodeSupportedFormats.EAN_13,
+      Html5QrcodeSupportedFormats.EAN_8,
+      Html5QrcodeSupportedFormats.UPC_A,
+      Html5QrcodeSupportedFormats.UPC_E,
+      Html5QrcodeSupportedFormats.PDF_417,
+      Html5QrcodeSupportedFormats.DATA_MATRIX,
       Html5QrcodeSupportedFormats.AZTEC
-    ].filter(Boolean);
+    ].filter(v => v !== undefined && v !== null);
     const config={
       fps:20,
       formatsToSupport:formatos,
@@ -772,11 +778,26 @@ async function iniciarScanner(){
       experimentalFeatures:{useBarCodeDetectorIfSupported:true}
     };
     await scanner.start({facingMode:"environment"},config,async(decodedText)=>{
-      if(!decodedText || decodedText===ultimoCodigo) return;
-      ultimoCodigo=decodedText;
+      if(!decodedText) return;
+      const texto=String(decodedText).trim();
+      if(!texto || texto===ultimoCodigo) return;
+
+      // Aceita QR Code e códigos de barras. Para linhas numéricas longas,
+      // só confirma quando a leitura tiver comprimento compatível com boleto.
+      const digits=texto.replace(/\D/g,"");
+      const pareceBoletoNumerico=(digits.length===44 || digits.length===47 || digits.length===48);
+      const ehQrOuOutro=/^(https?:\/\/|000201|[A-Za-z])/i.test(texto);
+      if(digits.length>=40 && !pareceBoletoNumerico) return;
+
+      ultimoCodigo=texto;
       const guide=document.getElementById("scanGuide");
       if(guide) guide.classList.add("success");
-      await leituraConcluida(decodedText);
+      const status=document.getElementById("scanStatus");
+      if(status){
+        status.className="alert green";
+        status.innerHTML=ehQrOuOutro || !digits ? "<strong>QR Code / código reconhecido.</strong><br>Salvando automaticamente..." : "<strong>Código de barras reconhecido.</strong><br>Salvando automaticamente...";
+      }
+      await leituraConcluida(texto);
     },()=>{});
     scannerRunning=true;
     flashAtivo=false;
