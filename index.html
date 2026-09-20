@@ -48,7 +48,6 @@ header{display:flex;justify-content:space-between;align-items:center;gap:15px;ma
 @media(max-width:650px){.app{padding:12px}.cards{grid-template-columns:repeat(2,1fr)}.formgrid,.filters{grid-template-columns:1fr}.span2{grid-column:auto}.card .value{font-size:20px}header{align-items:flex-start;flex-direction:column}}
 </style>
 
-
 <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <style>
@@ -105,66 +104,10 @@ header{display:flex;justify-content:space-between;align-items:center;gap:15px;ma
 </style>
 </head>
 <body>
-<div id="loginScreen" class="auth-screen">
-  <div class="login-box">
-    <div class="login-logo">🔐</div>
-    <h1>Controle Financeiro</h1>
-    <p>Acesso protegido</p>
-
-    <form id="loginForm" onsubmit="fazerLogin(event); return false;">
-      <div class="field">
-        <label>Usuário</label>
-        <input id="loginCPF" inputmode="numeric" maxlength="14" autocomplete="username" required placeholder="Digite seu CPF">
-      </div>
-      <div class="field" style="margin-top:12px">
-        <label>Senha</label>
-        <div class="password-wrap">
-          <input id="loginPass" type="password" autocomplete="current-password" required placeholder="Digite sua senha">
-          <button type="button" class="toggle-password" onclick="toggleSenha('loginPass',this)" aria-label="Mostrar senha" title="Mostrar senha"><svg class="eye-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"></path><circle cx="12" cy="12" r="2.8"></circle></svg></button>
-        </div>
-      </div>
-      <div id="loginError" class="login-error"></div>
-      <button type="submit" class="btn primary" style="width:100%;margin-top:14px">Entrar</button>
-    </form>
-
-    <button type="button" id="btnCadastro" class="btn" style="width:100%;margin-top:9px" onclick="abrirCadastro(); return false;">＋ Cadastrar novo usuário</button>
-    <div class="login-security">No login serão utilizados somente CPF e senha.</div>
-  </div>
-</div>
-
-<div id="cadastroScreen" class="auth-screen" style="display:none">
-  <div class="login-box">
-    <div class="login-logo">👤</div>
-    <h1>Novo usuário</h1>
-    <p>Cadastre seus dados para acessar o sistema</p>
-
-    <form id="cadastroForm" onsubmit="cadastrarUsuario(event); return false;">
-      <div class="field">
-        <label>CPF</label>
-        <input id="cadCPF" inputmode="numeric" maxlength="14" autocomplete="off" required placeholder="000.000.000-00">
-      </div>
-      <div class="field" style="margin-top:12px">
-        <label>Nome completo</label>
-        <input id="cadNome" maxlength="80" autocomplete="name" required placeholder="Digite seu nome completo">
-      </div>
-      <div class="field" style="margin-top:12px">
-        <label>Senha</label>
-        <div class="password-wrap">
-          <input id="cadPass" type="password" minlength="6" autocomplete="new-password" required placeholder="Mínimo de 6 caracteres">
-          <button type="button" class="toggle-password" onclick="toggleSenha('cadPass',this)" aria-label="Mostrar senha" title="Mostrar senha"><svg class="eye-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"></path><circle cx="12" cy="12" r="2.8"></circle></svg></button>
-        </div>
-      </div>
-      <div id="cadError" class="login-error"></div>
-      <button type="submit" class="btn primary" style="width:100%;margin-top:14px">Cadastrar</button>
-      <button type="button" class="btn" style="width:100%;margin-top:9px" onclick="fecharCadastro()">← Voltar para o login</button>
-    </form>
-    <div class="login-security">Depois do cadastro, o login será feito usando somente o CPF e a senha.</div>
-  </div>
-</div>
 <div class="app">
 <header>
   <div class="brand"><h1>Controle Financeiro Residencial</h1><p>Organize receitas, despesas, vencimentos, cartões e orçamento da casa.</p></div>
-  <div class="actions"><span class="user-name" id="currentUser"></span><button class="btn" onclick="bloquearApp()">🔒 Bloquear</button><button class="btn green" onclick="exportar()">Exportar backup</button>
+  <div class="actions"><button class="btn green" onclick="exportar()">Exportar backup</button>
     <button class="btn" onclick="document.getElementById('arquivo').click()">Importar backup</button>
     <button class="btn danger" onclick="limparTudo()">Apagar tudo</button>
     <input id="arquivo" type="file" accept=".json" hidden onchange="importar(this)">
@@ -305,35 +248,12 @@ header{display:flex;justify-content:space-between;align-items:center;gap:15px;ma
 </section>
 
 
-<section id="seguranca" class="section">
-<div class="panel">
-<h2>🔐 Segurança e usuários</h2>
-<p class="small">Gerencie o acesso ao aplicativo. A senha não é exibida e é armazenada como hash local.</p>
-<div class="formgrid">
- <div class="field"><label>Usuário atual</label><input id="secUser" disabled></div>
- <div class="field"><label>Nova senha</label><div class="password-wrap"><input id="novaSenha" type="password" minlength="6" placeholder="Mínimo de 6 caracteres"><button type="button" class="toggle-password" onclick="toggleSenha('novaSenha',this)" aria-label="Mostrar senha" title="Mostrar senha"><svg class="eye-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"></path><circle cx="12" cy="12" r="2.8"></circle></svg></button></div></div>
- <div class="field"><label>Confirmar nova senha</label><div class="password-wrap"><input id="confSenha" type="password" minlength="6"><button type="button" class="toggle-password" onclick="toggleSenha('confSenha',this)" aria-label="Mostrar senha" title="Mostrar senha"><svg class="eye-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"></path><circle cx="12" cy="12" r="2.8"></circle></svg></button></div></div>
- <div class="field"><label>Bloqueio automático (minutos)</label><input id="autoLock" type="number" min="0" max="240" step="1"></div>
-</div>
-<div class="form-actions">
- <button class="btn" onclick="salvarAutoLock()">Salvar bloqueio</button>
- <button class="btn primary" onclick="alterarSenha()">Alterar senha</button>
-</div>
-<div class="alert yellow" style="margin-top:15px">
-<strong>Importante</strong>
-Esta proteção é adequada para a versão local/PWA. Quando transformarmos o sistema em APK, podemos migrar para armazenamento seguro do sistema e biometria.
-</div>
-</div>
-</section>
-
-<div class="footer">Controle Financeiro Residencial • sincronizado na nuvem</div>
+<div class="footer">Controle Financeiro Residencial • modo local • sem nuvem</div>
 </div>
 
 <script>
 const KEY="financeiro_residencial_v1";
-const SUPABASE_URL="https://thxtmhaahyblqfkwwqsn.supabase.co";
-const SUPABASE_PUBLISHABLE_KEY="sb_publishable_waDTXx-X4FcJvKCkOuYrHg_e-kO8IEv";
-const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}});
+// Modo local: nenhum dado é enviado para servidores.
 let usuarioSupabaseId=null;
 let sincronizacaoFila=Promise.resolve();
 let realtimeChannel=null;
@@ -355,37 +275,13 @@ function temDadosLocais(){
   return db.lancamentos.length>0 || db.recorrentes.length>0 || Object.keys(db.orcamento||{}).some(k=>Number(db.orcamento[k]||0)!==0);
 }
 async function sincronizarSnapshot(snapshot){
-  if(!usuarioSupabaseId)return true;
-
-  const {data:sessionData,error:sessionError}=await sb.auth.getSession();
-  if(sessionError)throw sessionError;
-  if(!sessionData?.session || sessionData.session.user.id!==usuarioSupabaseId){
-    throw new Error('Sessão do usuário não está ativa. Faça login novamente.');
-  }
-
-  const payload=JSON.parse(snapshot);
-  const {error}=await sb.from('dados_financeiros').upsert({
-    usuario_id:usuarioSupabaseId,
-    dados:payload,
-    updated_at:new Date().toISOString()
-  },{onConflict:'usuario_id'});
-
-  if(error)throw new Error(error.message || 'Erro desconhecido ao salvar na nuvem.');
+  // Mantida apenas para compatibilidade com chamadas antigas.
   return true;
 }
 function save(){
   db=normalizarDb(db);
   localStorage.setItem(KEY,JSON.stringify(db));
-
-  if(!usuarioSupabaseId)return Promise.resolve(true);
-
-  const snapshot=JSON.stringify(db);
-  const tarefa=sincronizacaoFila.then(()=>sincronizarSnapshot(snapshot));
-  // Mantém a fila viva para o próximo salvamento, mas não engole o erro da tarefa atual.
-  sincronizacaoFila=tarefa.catch(err=>{
-    console.error('Erro ao sincronizar dados financeiros:',err);
-  });
-  return tarefa;
+  return Promise.resolve(true);
 }
 function money(v){return Number(v||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});}
 function isoToday(){return new Date().toISOString().slice(0,10)}
@@ -702,23 +598,12 @@ function delRec(id){if(confirm("Excluir esta recorrência?")){db.recorrentes=db.
 function saveConfig(){db.config.nomeCasa=nomeCasa.value;db.config.limiteAlerta=Number(limiteAlerta.value||80);db.config.catPadrao=catPadrao.value;save()}
 function exportar(){let blob=new Blob([JSON.stringify(db,null,2)],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="backup-financeiro-"+isoToday()+".json";a.click();URL.revokeObjectURL(a.href)}
 function importar(input){let f=input.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{try{let x=JSON.parse(r.result);if(!x.lancamentos||!x.recorrentes)throw 0;if(confirm("Importar este backup e substituir os dados atuais?")){db=x;save();location.reload()}}catch(e){alert("Arquivo de backup inválido.")}};r.readAsText(f)}
-async function sincronizarAgora(){
-  if(!usuarioSupabaseId)return;
-  try{
-    await sincronizarSnapshot(JSON.stringify(db));
-  }catch(err){
-    console.error('Falha na sincronização:',err);
-  }
-}
-window.addEventListener('online',sincronizarAgora);
+function sincronizarAgora(){ return Promise.resolve(true); }
 
 async function limparTudo(){
-  if(!confirm("ATENÇÃO: isso apagará todos os lançamentos, recorrências e orçamentos desta conta. Continuar?"))return;
+  if(!confirm("ATENÇÃO: isso apagará todos os lançamentos, recorrências e orçamentos deste dispositivo. Continuar?"))return;
   db=dbVazia();
   localStorage.setItem(KEY,JSON.stringify(db));
-  if(usuarioSupabaseId){
-    await sincronizarSnapshot(JSON.stringify(db));
-  }
   location.reload();
 }
 
@@ -1276,298 +1161,15 @@ async function copiarCodigo(){
 }
 
 
-/* ================= SEGURANÇA / SUPABASE ================= */
-const AUTH_KEY="financeiro_residencial_auth_v2";
-let auth=null;
-let tentativas=0,bloqueioAte=0,lockTimer=null;
-
-function onlyDigits(v){return String(v||"").replace(/\D/g,"");}
-function formatCPF(v){
-  let d=onlyDigits(v).slice(0,11);
-  if(d.length>9)return d.replace(/(\d{3})(\d{3})(\d{3})(\d{0,2})/,"$1.$2.$3-$4");
-  if(d.length>6)return d.replace(/(\d{3})(\d{3})(\d{0,3})/,"$1.$2.$3");
-  if(d.length>3)return d.replace(/(\d{3})(\d{0,3})/,"$1.$2");
-  return d;
-}
-function cpfValido(cpf){
-  const d=onlyDigits(cpf);
-  if(d.length!==11 || /^(\d)\1{10}$/.test(d)) return false;
-  let soma=0;
-  for(let i=0;i<9;i++)soma+=Number(d[i])*(10-i);
-  let r=(soma*10)%11;if(r===10)r=0;
-  if(r!==Number(d[9]))return false;
-  soma=0;
-  for(let i=0;i<10;i++)soma+=Number(d[i])*(11-i);
-  r=(soma*10)%11;if(r===10)r=0;
-  return r===Number(d[10]);
-}
-function cpfEmail(cpf){
-  return `cpf.${onlyDigits(cpf)}@thxtmhaahyblqfkwwqsn.supabase.co`;
-}
-function authMsg(error){
-  const m=String(error?.message||"");
-  if(/already registered|already exists/i.test(m))return "Este CPF já está cadastrado.";
-  if(/invalid login credentials/i.test(m))return "CPF ou senha incorretos.";
-  if(/password/i.test(m)&&/at least/i.test(m))return "A senha não atende ao tamanho mínimo configurado.";
-  return m||"Não foi possível concluir a operação.";
-}
-function mostrarTelaLogin(){
-  const login=document.getElementById("loginScreen");
-  const cadastro=document.getElementById("cadastroScreen");
-  if(login)login.style.display="flex";
-  if(cadastro)cadastro.style.display="none";
-  const cpf=document.getElementById("loginCPF");
-  if(cpf)setTimeout(()=>cpf.focus(),50);
-}
-function abrirCadastro(){
-  const login=document.getElementById("loginScreen");
-  const cadastro=document.getElementById("cadastroScreen");
-  if(login)login.style.display="none";
-  if(cadastro){
-    cadastro.style.display="flex";
-    const form=document.getElementById("cadastroForm");
-    if(form)form.reset();
-    const erro=document.getElementById("cadError");
-    if(erro){erro.style.display="none";erro.textContent="";}
-    setTimeout(()=>{const c=document.getElementById("cadCPF");if(c)c.focus();},50);
-  }
-}
-function fecharCadastro(){ mostrarTelaLogin(); }
-
-async function carregarPerfil(userId){
-  const {data,error}=await sb.from('perfis').select('id,cpf,nome').eq('id',userId).maybeSingle();
-  if(error)throw error;
-  return data;
-}
-function temDadosNoDb(obj){
-  const x=normalizarDb(obj);
-  return x.lancamentos.length>0 || x.recorrentes.length>0 || Object.keys(x.orcamento||{}).some(k=>Number(x.orcamento[k]||0)!==0) || !!(x.config && x.config.nomeCasa && x.config.nomeCasa!=="Minha Residência");
-}
-function pararRealtime(){
-  if(realtimeChannel){
-    try{ sb.removeChannel(realtimeChannel); }catch(_e){}
-    realtimeChannel=null;
-  }
-}
-
-async function iniciarRealtime(){
-  pararRealtime();
-  if(!usuarioSupabaseId)return;
-
-  const channelName="financeiro-realtime-"+usuarioSupabaseId;
-  realtimeChannel=sb.channel(channelName);
-  realtimeChannel.on(
-    "postgres_changes",
-    {event:"*",schema:"public",table:"dados_financeiros",filter:"usuario_id=eq."+usuarioSupabaseId},
-    payload=>{
-      try{
-        if(payload.eventType==="DELETE"){
-          db=dbVazia();
-        }else if(payload.new && payload.new.dados){
-          db=normalizarDb(payload.new.dados);
-        }else{
-          return;
-        }
-        localStorage.setItem(KEY,JSON.stringify(db));
-        render();
-      }catch(err){
-        console.error("Erro ao atualizar dados em tempo real:",err);
-      }
-    }
-  );
-
-  realtimeChannel.subscribe(status=>{
-    if(status!=="SUBSCRIBED" && status!=="CHANNEL_ERROR" && status!=="TIMED_OUT"){
-      console.log("Realtime status:",status);
-    }
-  });
-}
-
-async function carregarDadosRemotos(){
-  const {data,error}=await sb.from('dados_financeiros').select('dados').eq('usuario_id',usuarioSupabaseId).maybeSingle();
-  if(error)throw error;
-
-  if(data && data.dados){
-    const remoto=normalizarDb(data.dados);
-    // Se a nuvem ainda estiver vazia, nunca apague dados locais existentes.
-    if(!temDadosNoDb(remoto) && temDadosLocais()){
-      await sincronizarSnapshot(JSON.stringify(db));
-      return true;
-    }
-    db=remoto;
-    localStorage.setItem(KEY,JSON.stringify(db));
-    return true;
-  }
-
-  if(temDadosLocais()){
-    await sincronizarSnapshot(JSON.stringify(db));
-    return true;
-  }
-
-  db=dbVazia();
-  localStorage.setItem(KEY,JSON.stringify(db));
-  await sincronizarSnapshot(JSON.stringify(db));
-  return false;
-}
-
-async function cadastrarUsuario(e){
-  if(e&&e.preventDefault)e.preventDefault();
-  const erro=document.getElementById("cadError");
-  try{
-    erro.style.display="none";
-    const cpf=formatCPF(document.getElementById("cadCPF").value);
-    const nome=document.getElementById("cadNome").value.trim();
-    const senha=document.getElementById("cadPass").value;
-
-    if(!cpfValido(cpf)){erro.style.display="block";erro.textContent="Informe um CPF válido com 11 números.";return false;}
-    if(nome.length<3){erro.style.display="block";erro.textContent="Informe o nome completo.";return false;}
-    if(senha.length<6){erro.style.display="block";erro.textContent="A senha precisa ter pelo menos 6 caracteres.";return false;}
-
-    const email=cpfEmail(cpf);
-    const {data,error}=await sb.auth.signUp({email,password:senha});
-    if(error)throw error;
-    if(!data.user){throw new Error("Não foi possível criar a conta.");}
-
-    const {error:perfilError}=await sb.from('perfis').insert({id:data.user.id,cpf,nome});
-    if(perfilError)throw perfilError;
-
-    usuarioSupabaseId=data.user.id;
-    auth={id:data.user.id,cpf,nome};
-
-    if(temDadosLocais()){
-      const enviar=confirm("Existe um financeiro salvo neste dispositivo. Deseja enviar esses dados para a nova conta?");
-      if(!enviar){db=dbVazia();localStorage.setItem(KEY,JSON.stringify(db));}
-    }
-    save();
-    await sincronizacaoFila;
-
-    await sb.auth.signOut();
-    usuarioSupabaseId=null;auth=null;
-    mostrarTelaLogin();
-    document.getElementById("loginCPF").value=cpf;
-    document.getElementById("loginPass").value="";
-    const le=document.getElementById("loginError");
-    le.style.display="block";
-    le.textContent="Cadastro realizado com sucesso. Digite sua senha para entrar.";
-    return false;
-  }catch(err){
-    console.error("Erro ao cadastrar usuário",err);
-    erro.style.display="block";
-    erro.textContent=authMsg(err);
-    pararRealtime();
-    try{await sb.auth.signOut();}catch(_e){}
-    usuarioSupabaseId=null;auth=null;
-    return false;
-  }
-}
-
-async function fazerLogin(e){
-  if(e&&e.preventDefault)e.preventDefault();
-  const erro=document.getElementById("loginError");
-  if(bloqueioAte>Date.now()){
-    erro.style.display="block";erro.textContent="Muitas tentativas. Aguarde "+Math.ceil((bloqueioAte-Date.now())/1000)+" segundos.";
-    return false;
-  }
-  const cpf=formatCPF(document.getElementById("loginCPF").value);
-  const senha=document.getElementById("loginPass").value;
-  if(!cpfValido(cpf)){erro.style.display="block";erro.textContent="Informe um CPF válido.";return false;}
-
-  try{
-    const {data,error}=await sb.auth.signInWithPassword({email:cpfEmail(cpf),password:senha});
-    if(error)throw error;
-    if(!data.user)throw new Error("Não foi possível autenticar.");
-
-    const perfil=await carregarPerfil(data.user.id);
-    if(!perfil)throw new Error("Perfil do usuário não encontrado.");
-
-    usuarioSupabaseId=data.user.id;
-    auth={...perfil};
-    const autoLock=Number(localStorage.getItem("financeiro_autolock_"+onlyDigits(cpf))||5);
-    auth.autoLock=autoLock;
-
-    await carregarDadosRemotos();
-    tentativas=0;
-    document.getElementById("loginScreen").style.display="none";
-    document.getElementById("cadastroScreen").style.display="none";
-    document.getElementById("currentUser").textContent="👤 "+perfil.nome;
-    document.getElementById("secUser").value=perfil.nome;
-    document.getElementById("autoLock").value=autoLock;
-    document.getElementById("loginPass").value="";
-    erro.style.display="none";
-    render();
-    await iniciarRealtime();
-  }catch(err){
-    console.error("Erro ao entrar",err);
-    tentativas++;
-    erro.style.display="block";
-    erro.textContent=authMsg(err);
-    if(tentativas>=5){
-      bloqueioAte=Date.now()+30000;
-      tentativas=0;
-      erro.textContent="5 tentativas incorretas. Acesso bloqueado por 30 segundos.";
-    }
-    pararRealtime();
-    try{await sb.auth.signOut();}catch(_e){}
-    usuarioSupabaseId=null;auth=null;
-  }
-  return false;
-}
-
-async function bloquearApp(){
-  clearTimeout(lockTimer);
-  pararRealtime();
-  try{await sb.auth.signOut();}catch(_e){}
-  usuarioSupabaseId=null;auth=null;
-  document.getElementById("loginCPF").value="";
-  document.getElementById("loginPass").value="";
-  document.getElementById("loginError").style.display="none";
-  mostrarTelaLogin();
-}
-function iniciarAutoLock(){
-  clearTimeout(lockTimer);
-  const min=Number(auth?.autoLock||0);
-  if(min>0)lockTimer=setTimeout(()=>{bloquearApp();},min*60000);
-}
-function atividadeUsuario(){
-  if(document.getElementById("loginScreen").style.display==="none"&&document.getElementById("cadastroScreen").style.display==="none")iniciarAutoLock();
-}
-async function alterarSenha(){
-  const n=document.getElementById("novaSenha").value,c=document.getElementById("confSenha").value;
-  if(!n||n.length<6)return alert("A nova senha precisa ter pelo menos 6 caracteres.");
-  if(n!==c)return alert("A confirmação da senha não confere.");
-  const {error}=await sb.auth.updateUser({password:n});
-  if(error)return alert(authMsg(error));
-  document.getElementById("novaSenha").value="";document.getElementById("confSenha").value="";
-  alert("Senha alterada com sucesso.");
-}
-function salvarAutoLock(){
-  const n=Math.max(0,Math.min(240,Number(document.getElementById("autoLock").value||5)));
-  if(auth?.cpf)localStorage.setItem("financeiro_autolock_"+onlyDigits(auth.cpf),String(n));
-  if(auth)auth.autoLock=n;
-  iniciarAutoLock();
-  alert(n===0?"Bloqueio automático desativado.":"Bloqueio automático configurado para "+n+" minutos.");
-}
+/* ================= MODO LOCAL ================= */
+function pararRealtime(){}
+async function iniciarRealtime(){ return true; }
+async function carregarDadosRemotos(){ return false; }
 function toggleSenha(id,btn){
   const input=document.getElementById(id);
   if(!input)return;
   const mostrar=input.type === "password";
   input.type=mostrar ? "text" : "password";
-  btn.innerHTML=mostrar ? '<svg class="eye-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3l18 18"></path><path d="M10.6 5.2A10.9 10.9 0 0 1 12 5c6.5 0 10 7 10 7a18.2 18.2 0 0 1-3 3.8"></path><path d="M6.4 6.4C3.5 8.2 2 12 2 12s3.5 7 10 7a10.8 10.8 0 0 0 5-1.2"></path><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"></path></svg>' : '<svg class="eye-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"></path><circle cx="12" cy="12" r="2.8"></circle></svg>';
-  btn.setAttribute("aria-label",mostrar ? "Ocultar senha" : "Mostrar senha");
-  btn.setAttribute("title",mostrar ? "Ocultar senha" : "Mostrar senha");
-}
-async function prepararAuth(){
-  pararRealtime();
-  try{await sb.auth.signOut();}catch(_e){}
-  usuarioSupabaseId=null;auth=null;
-  mostrarTelaLogin();
-}
-function inicializarSegurancaUI(){
-  const loginCPF=document.getElementById("loginCPF");
-  if(loginCPF)loginCPF.addEventListener("input",e=>e.target.value=formatCPF(e.target.value));
-  const cadCPF=document.getElementById("cadCPF");
-  if(cadCPF)cadCPF.addEventListener("input",e=>e.target.value=formatCPF(e.target.value));
-  ["click","keydown","touchstart"].forEach(ev=>document.addEventListener(ev,atividadeUsuario,{passive:true}));
 }
 window.addEventListener("resize",()=>drawPie(db.lancamentos));
 document.addEventListener("keydown",e=>{if(e.key==="Escape" && document.getElementById("scanner")?.classList.contains("scanner-fullscreen-mode"))pararScanner()});
@@ -1577,8 +1179,6 @@ document.querySelectorAll(".tab").forEach(b=>{
   }
 });
 init();
-inicializarSegurancaUI();
-prepararAuth();
 
 </script>
 
