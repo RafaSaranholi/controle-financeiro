@@ -1,10 +1,10 @@
-const CACHE = 'controle-financeiro-v1';
+const CACHE = 'controle-financeiro-v2';
 const APP_SHELL = [
   './',
   './index.html',
   './manifest.json',
-  './icons/icon-192.png',
-  './icons/icon-512.png'
+  './icon-192.png',
+  './icon-512.png'
 ];
 
 self.addEventListener('install', event => {
@@ -13,9 +13,7 @@ self.addEventListener('install', event => {
 });
 
 self.addEventListener('activate', event => {
-  event.waitUntil(
-    caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
-  );
+  event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))));
   self.clients.claim();
 });
 
@@ -23,12 +21,12 @@ self.addEventListener('fetch', event => {
   const req = event.request;
   if (req.method !== 'GET') return;
   event.respondWith(
-    caches.match(req).then(cached => cached || fetch(req).then(res => {
+    fetch(req).then(res => {
       if (req.url.startsWith(self.location.origin)) {
         const clone = res.clone();
         caches.open(CACHE).then(cache => cache.put(req, clone));
       }
       return res;
-    }).catch(() => caches.match('./index.html')))
+    }).catch(() => caches.match(req).then(cached => cached || caches.match('./index.html')))
   );
 });
