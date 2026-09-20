@@ -808,8 +808,10 @@ async function iniciarScanner(){
       const tracks=video.srcObject.getVideoTracks();
       if(tracks && tracks.length) cameraTrack=tracks[0];
     }
+    melhorarCameraParaLeitura();
     atualizarBotaoFlash();
     iniciarLeituraQRAlternativa();
+    iniciarLeituraNativa();
   }catch(e){
     scannerRunning=false;
     scanStatus.className="alert red";
@@ -821,6 +823,8 @@ async function iniciarScanner(){
 let qrLoopAtivo=false;
 let qrCanvas=null;
 let qrCtx=null;
+let nativeBarcodeLoopAtivo=false;
+let nativeBarcodeDetector=null;
 
 function iniciarLeituraQRAlternativa(){
   if(typeof jsQR!=="function" || qrLoopAtivo) return;
@@ -837,26 +841,94 @@ function executarLeituraQR(){
     requestAnimationFrame(executarLeituraQR);
     return;
   }
-  // Reduz a imagem mantendo a proporção para tornar a leitura mais rápida.
-  const maxW=1280;
-  const escala=Math.min(1,maxW/video.videoWidth);
-  const w=Math.max(320,Math.round(video.videoWidth*escala));
-  const h=Math.max(240,Math.round(video.videoHeight*escala));
-  if(qrCanvas.width!==w || qrCanvas.height!==h){ qrCanvas.width=w; qrCanvas.height=h; }
-  qrCtx.drawImage(video,0,0,w,h);
   try{
-    const image=qrCtx.getImageData(0,0,w,h);
-    const result=jsQR(image.data,w,h,{inversionAttempts:"attemptBoth"});
-    if(result && result.data){
-      const texto=String(result.data).trim();
-      if(texto && texto!==ultimoCodigo){
-        qrLoopAtivo=false;
-        leituraConcluida(texto);
-        return;
+    // Primeiro tenta a área do enquadramento. O QR da conta é denso e fica
+    // muito mais fácil de reconhecer quando damos mais pixels a ele.
+    const srcW=video.videoWidth, srcH=video.videoHeight;
+    const crops=[
+      {x:.05,y:.28,w:.90,h:.44},
+      {x:0,y:0,w:1,h:1}
+    ];
+    for(const c of crops){
+      const baseW=Math.min(1800, Math.max(900, Math.round(srcW*c.w)));
+      const baseH=Math.round(baseW*(c.h*srcH)/(c.w*srcW));
+      const w=baseW, h=Math.max(500,baseH);
+      if(qrCanvas.width!==w || qrCanvas.height!==h){ qrCanvas.width=w; qrCanvas.height=h; }
+      qrCtx.imageSmoothingEnabled=true;
+      qrCtx.drawImage(video,srcW*c.x,srcH*c.y,srcW*c.w,srcH*c.h,0,0,w,h);
+      const image=qrCtx.getImageData(0,0,w,h);
+      let result=jsQR(image.data,w,h,{inversionAttempts:"attemptBoth"});
+      if(!result){
+        // Aumenta contraste para documentos impressos com iluminação irregular.
+        const d=image.data;
+        for(let i=0;i<d.length;i+=4){
+          const g=(0.299*d[i]+0.587*d[i+1]+0.114*d[i+2]);
+          const v=g<145?0:255;
+          d[i]=d[i+1]=d[i+2]=v;
+        }
+        result=jsQR(d,w,h,{inversionAttempts:"attemptBoth"});
+      }
+      if(result && result.data){
+        const texto=String(result.data).trim();
+        if(texto && texto!==ultimoCodigo){
+          qrLoopAtivo=false;
+          leituraConcluida(texto);
+          return;
+        }
       }
     }
   }catch(e){}
   requestAnimationFrame(executarLeituraQR);
+}
+
+function iniciarLeituraNativa(){
+  if(!("BarcodeDetector" in window) || nativeBarcodeLoopAtivo) return;
+  try{
+    const formatosDisponiveis=typeof BarcodeDetector.getSupportedFormats==="function" ? null : null;
+    nativeBarcodeDetector=new BarcodeDetector({formats:["qr_code","code_128","itf","ean_13","ean_8","upc_a","upc_e","data_matrix","aztec","pdf417"].filter(Boolean)});
+  }catch(e){
+    try{ nativeBarcodeDetector=new BarcodeDetector(); }catch(e2){ nativeBarcodeDetector=null; }
+  }
+  if(!nativeBarcodeDetector) return;
+  nativeBarcodeLoopAtivo=true;
+  executarLeituraNativa();
+}
+
+async function executarLeituraNativa(){
+  if(!nativeBarcodeLoopAtivo || !scannerRunning) return;
+  const video=document.querySelector("#reader video");
+  if(video && video.readyState>=2 && video.videoWidth){
+    try{
+      const resultados=await nativeBarcodeDetector.detect(video);
+      if(resultados && resultados.length){
+        const r=resultados[0];
+        const texto=String(r.rawValue||"").trim();
+        if(texto){
+          nativeBarcodeLoopAtivo=false;
+          leituraConcluida(texto);
+          return;
+        }
+      }
+    }catch(e){}
+  }
+  setTimeout(executarLeituraNativa,120);
+}
+
+function pararLeituraNativa(){ nativeBarcodeLoopAtivo=false; nativeBarcodeDetector=null; }
+
+function melhorarCameraParaLeitura(){
+  const track=obterCameraTrack();
+  if(!track || typeof track.getCapabilities!=="function") return;
+  try{
+    const caps=track.getCapabilities()||{};
+    const advanced=[];
+    if(caps.focusMode && caps.focusMode.includes("continuous")) advanced.push({focusMode:"continuous"});
+    if(caps.zoom){
+      const alvo=Math.min(caps.max||2, Math.max(caps.min||1, (caps.min||1)*1.35));
+      if(isFinite(alvo)) advanced.push({zoom:alvo});
+    }
+    if(advanced.length) track.applyConstraints({advanced}).catch(()=>{});
+  }catch(e){}
 }
 
 function pararLeituraQRAlternativa(){ qrLoopAtivo=false; }
@@ -896,6 +968,7 @@ async function alternarFlash(){
     }
     flashAtivo=!flashAtivo;
     await track.applyConstraints({advanced:[{torch:flashAtivo}]});
+    melhorarCameraParaLeitura();
     atualizarBotaoFlash();
   }catch(e){
     flashAtivo=!flashAtivo;
@@ -973,6 +1046,8 @@ async function leituraConcluida(code){
 }
 
 async function pararScanner(){
+  pararLeituraQRAlternativa();
+  pararLeituraNativa();
   try{
     await desligarFlash();
     if(scanner && scannerRunning){ await scanner.stop(); scanner.clear(); }
