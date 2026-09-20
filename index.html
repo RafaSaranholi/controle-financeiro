@@ -343,26 +343,37 @@ function temDadosLocais(){
   return db.lancamentos.length>0 || db.recorrentes.length>0 || Object.keys(db.orcamento||{}).some(k=>Number(db.orcamento[k]||0)!==0);
 }
 async function sincronizarSnapshot(snapshot){
-  if(!usuarioSupabaseId)return;
-  try{
-    const payload=JSON.parse(snapshot);
-    const {error}=await sb.from('dados_financeiros').upsert({
-      usuario_id:usuarioSupabaseId,
-      dados:payload,
-      updated_at:new Date().toISOString()
-    },{onConflict:'usuario_id'});
-    if(error)throw error;
-  }catch(err){
-    console.error('Erro ao sincronizar dados financeiros:',err);
+  if(!usuarioSupabaseId)return true;
+
+  const {data:sessionData,error:sessionError}=await sb.auth.getSession();
+  if(sessionError)throw sessionError;
+  if(!sessionData?.session || sessionData.session.user.id!==usuarioSupabaseId){
+    throw new Error('Sessão do usuário não está ativa. Faça login novamente.');
   }
+
+  const payload=JSON.parse(snapshot);
+  const {error}=await sb.from('dados_financeiros').upsert({
+    usuario_id:usuarioSupabaseId,
+    dados:payload,
+    updated_at:new Date().toISOString()
+  },{onConflict:'usuario_id'}).select('usuario_id').single();
+
+  if(error)throw new Error(error.message || 'Erro desconhecido ao salvar na nuvem.');
+  return true;
 }
 function save(){
   db=normalizarDb(db);
   localStorage.setItem(KEY,JSON.stringify(db));
-  if(usuarioSupabaseId){
-    const snapshot=JSON.stringify(db);
-    sincronizacaoFila=sincronizacaoFila.then(()=>sincronizarSnapshot(snapshot)).catch(err=>console.error(err));
-  }
+
+  if(!usuarioSupabaseId)return Promise.resolve(true);
+
+  const snapshot=JSON.stringify(db);
+  const tarefa=sincronizacaoFila.then(()=>sincronizarSnapshot(snapshot));
+  sincronizacaoFila=tarefa.catch(err=>{
+    console.error('Erro ao sincronizar dados financeiros:',err);
+    return false;
+  });
+  return tarefa;
 }
 function money(v){return Number(v||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});}
 function isoToday(){return new Date().toISOString().slice(0,10)}
@@ -478,7 +489,7 @@ function statusReal(l){
  return l.status||"pendente";
 }
 
-function salvarLancamento(ev){
+async function salvarLancamento(ev){
  ev.preventDefault();
 
  const el = id => document.getElementById(id);
@@ -543,9 +554,15 @@ function salvarLancamento(ev){
    db.lancamentos.push(obj);
  }
 
- save();
- resetForm();
- render();
+ try{
+   await save();
+   resetForm();
+   render();
+ }catch(err){
+   console.error('Falha ao salvar lançamento:',err);
+   render();
+   alert('O lançamento ficou salvo neste aparelho, mas NÃO foi sincronizado com a nuvem.\n\nMotivo: '+(err?.message||'erro desconhecido')+'\n\nCorrija o problema e tente salvar novamente.');
+ }
 }
 
 function resetForm(){document.getElementById("form").reset();document.getElementById("pagamento").disabled=false;document.getElementById("pagamento").required=false;document.getElementById("pagamentoHint").textContent="";document.getElementById("editId").value="";document.getElementById("formTitle").textContent="Adicionar lançamento";document.getElementById("data").value=isoToday();document.getElementById("tipo").value="despesa";atualizarTratamentoTipo(false);document.getElementById("categoria").value=db.config.catPadrao||"Outros"}
