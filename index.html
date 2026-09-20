@@ -1019,26 +1019,9 @@ async function leituraConcluida(code){
     obs.value=detalhes;
   }
 
-  // Salva automaticamente assim que a leitura for concluída.
-  // O usuário não precisa apertar outro botão.
-  const categoriaEl=document.getElementById("categoria");
-  const categoria=(categoriaEl && categoriaEl.value) ? categoriaEl.value : "Outros";
-  db.lancamentos.push({
-    id:uid(),
-    tipo:"despesa",
-    descricao:info.descricao || "Boleto / conta escaneada",
-    categoria:categoria,
-    valor:info.valor!=null ? Number(info.valor) : 0,
-    data:isoToday(),
-    vencimento:info.vencimento || "",
-    pagamento:"",
-    status:"pendente",
-    forma:info.forma || "Boleto",
-    conta:"",
-    obs:"Código lido: "+code + (info.tipo==="qr-pix" ? " | QR Code PIX" : "")
-  });
-  try{ await save(); }catch(e){ console.error("Erro ao salvar boleto lido:",e); }
-  render();
+  // Importante: a leitura NÃO lança a despesa automaticamente.
+  // Apenas preenche o formulário de lançamento para o usuário conferir
+  // e clicar em "Salvar lançamento" quando estiver de acordo.
 
   // Retorna automaticamente para Lançamentos.
   document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
