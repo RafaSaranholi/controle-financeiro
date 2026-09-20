@@ -35,7 +35,7 @@ header{display:flex;justify-content:space-between;align-items:center;gap:15px;ma
 .legend{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}.legend span{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:5px}.dot{width:9px;height:9px;border-radius:50%}
 .tabs{display:flex;gap:7px;flex-wrap:wrap;margin:18px 0 12px}.tab{padding:10px 15px;border:1px solid var(--line);background:var(--panel);border-radius:10px;color:var(--muted)}.tab.active{background:var(--primary);color:#fff;border-color:var(--primary)}
 .section{display:none}.section.active{display:block}
-.formgrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:11px}.field{display:flex;flex-direction:column;gap:6px}.field label{font-size:12px;color:var(--muted);font-weight:600}.field input,.field select,.field textarea{width:100%;padding:10px 11px;border:1px solid var(--line);border-radius:9px;background:#0b1527;color:var(--text);outline:none}.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--primary)}.password-wrap{position:relative}.password-wrap input{padding-right:46px}.toggle-password{position:absolute;right:8px;top:50%;transform:translateY(-50%);width:34px;height:34px;border:0;background:transparent;color:var(--muted);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:17px;padding:0}.toggle-password:hover{background:rgba(255,255,255,.06);color:var(--text)}.span2{grid-column:span 2}.span4{grid-column:1/-1}
+.formgrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:11px}.field{display:flex;flex-direction:column;gap:6px}.field label{font-size:12px;color:var(--muted);font-weight:600}.field input,.field select,.field textarea{width:100%;padding:10px 11px;border:1px solid var(--line);border-radius:9px;background:#0b1527;color:var(--text);outline:none}.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--primary)}.password-wrap{position:relative}.password-wrap input{padding-right:46px}.toggle-password{position:absolute;right:8px;top:50%;transform:translateY(-50%);width:34px;height:34px;border:0;background:transparent;color:var(--muted);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:17px;padding:0}.toggle-password:hover{background:rgba(255,255,255,.06);color:var(--text)}.toggle-password .eye-icon{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;display:block}.toggle-password .eye-icon circle{fill:none}.span2{grid-column:span 2}.span4{grid-column:1/-1}
 .form-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:13px}
 .tablewrap{overflow:auto;margin-top:15px}.history-scroll{height:420px;max-height:420px;overflow-y:auto;overflow-x:auto;border:1px solid var(--line);border-radius:10px;display:block}.history-scroll .table{margin:0;width:100%;min-width:980px}.history-scroll::-webkit-scrollbar{width:10px;height:10px}.history-scroll::-webkit-scrollbar-thumb{background:#40516e;border-radius:10px}.history-scroll::-webkit-scrollbar-track{background:#0b1527}.history-scroll .table{margin:0}.history-scroll thead th{position:sticky;top:0;z-index:3}.table{width:100%;border-collapse:collapse;min-width:980px}.table th,.table td{padding:11px 10px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}.table th{font-size:12px;color:var(--muted);position:sticky;top:0;background:var(--panel);z-index:1}.table td{font-size:13px}.pill{padding:4px 8px;border-radius:20px;font-size:11px;font-weight:700;display:inline-block}.pago{background:#123b25;color:#9af0b7}.pendente{background:#402f0e;color:#ffd98a}.vencido{background:#48181e;color:#ffadb5}.actions-cell{display:flex;gap:5px}.iconbtn{border:1px solid var(--line);background:#0c1729;color:var(--text);border-radius:7px;padding:5px 8px}
 .filters{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:9px;margin-bottom:10px}.small{font-size:12px;color:var(--muted)}.hidden-field{display:none!important}
@@ -89,7 +89,7 @@ header{display:flex;justify-content:space-between;align-items:center;gap:15px;ma
         <label>Senha</label>
         <div class="password-wrap">
           <input id="loginPass" type="password" autocomplete="current-password" required placeholder="Digite sua senha">
-          <button type="button" class="toggle-password" onclick="toggleSenha('loginPass',this)" aria-label="Mostrar senha" title="Mostrar senha">👁️</button>
+          <button type="button" class="toggle-password" onclick="toggleSenha('loginPass',this)" aria-label="Mostrar senha" title="Mostrar senha"><svg class="eye-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"></path><circle cx="12" cy="12" r="2.8"></circle></svg></button>
         </div>
       </div>
       <div id="loginError" class="login-error"></div>
@@ -120,7 +120,7 @@ header{display:flex;justify-content:space-between;align-items:center;gap:15px;ma
         <label>Senha</label>
         <div class="password-wrap">
           <input id="cadPass" type="password" minlength="6" autocomplete="new-password" required placeholder="Mínimo de 6 caracteres">
-          <button type="button" class="toggle-password" onclick="toggleSenha('cadPass',this)" aria-label="Mostrar senha" title="Mostrar senha">👁️</button>
+          <button type="button" class="toggle-password" onclick="toggleSenha('cadPass',this)" aria-label="Mostrar senha" title="Mostrar senha"><svg class="eye-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"></path><circle cx="12" cy="12" r="2.8"></circle></svg></button>
         </div>
       </div>
       <div id="cadError" class="login-error"></div>
@@ -300,8 +300,8 @@ header{display:flex;justify-content:space-between;align-items:center;gap:15px;ma
 <p class="small">Gerencie o acesso ao aplicativo. A senha não é exibida e é armazenada como hash local.</p>
 <div class="formgrid">
  <div class="field"><label>Usuário atual</label><input id="secUser" disabled></div>
- <div class="field"><label>Nova senha</label><div class="password-wrap"><input id="novaSenha" type="password" minlength="6" placeholder="Mínimo de 6 caracteres"><button type="button" class="toggle-password" onclick="toggleSenha('novaSenha',this)" aria-label="Mostrar senha" title="Mostrar senha">👁️</button></div></div>
- <div class="field"><label>Confirmar nova senha</label><div class="password-wrap"><input id="confSenha" type="password" minlength="6"><button type="button" class="toggle-password" onclick="toggleSenha('confSenha',this)" aria-label="Mostrar senha" title="Mostrar senha">👁️</button></div></div>
+ <div class="field"><label>Nova senha</label><div class="password-wrap"><input id="novaSenha" type="password" minlength="6" placeholder="Mínimo de 6 caracteres"><button type="button" class="toggle-password" onclick="toggleSenha('novaSenha',this)" aria-label="Mostrar senha" title="Mostrar senha"><svg class="eye-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"></path><circle cx="12" cy="12" r="2.8"></circle></svg></button></div></div>
+ <div class="field"><label>Confirmar nova senha</label><div class="password-wrap"><input id="confSenha" type="password" minlength="6"><button type="button" class="toggle-password" onclick="toggleSenha('confSenha',this)" aria-label="Mostrar senha" title="Mostrar senha"><svg class="eye-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"></path><circle cx="12" cy="12" r="2.8"></circle></svg></button></div></div>
  <div class="field"><label>Bloqueio automático (minutos)</label><input id="autoLock" type="number" min="0" max="240" step="1"></div>
 </div>
 <div class="form-actions">
@@ -1100,7 +1100,7 @@ function toggleSenha(id,btn){
   if(!input)return;
   const mostrar=input.type === "password";
   input.type=mostrar ? "text" : "password";
-  btn.textContent=mostrar ? "🙈" : "👁️";
+  btn.innerHTML=mostrar ? '<svg class="eye-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3l18 18"></path><path d="M10.6 5.2A10.9 10.9 0 0 1 12 5c6.5 0 10 7 10 7a18.2 18.2 0 0 1-3 3.8"></path><path d="M6.4 6.4C3.5 8.2 2 12 2 12s3.5 7 10 7a10.8 10.8 0 0 0 5-1.2"></path><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"></path></svg>' : '<svg class="eye-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"></path><circle cx="12" cy="12" r="2.8"></circle></svg>';
   btn.setAttribute("aria-label",mostrar ? "Ocultar senha" : "Mostrar senha");
   btn.setAttribute("title",mostrar ? "Ocultar senha" : "Mostrar senha");
 }
