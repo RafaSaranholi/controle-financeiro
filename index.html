@@ -806,7 +806,21 @@ async function iniciarScanner(){
   }catch(e){
     scannerRunning=false;
     scanStatus.className="alert red";
-    scanStatus.innerHTML="<strong>Não foi possível iniciar a câmera.</strong><br>Em celulares, o navegador normalmente exige HTTPS para liberar a câmera.";
+    let msg = String(e?.message || e || "");
+    let nome = String(e?.name || "");
+    let detalhe = "Não foi possível iniciar a câmera.";
+    if(nome === "NotAllowedError" || /permission|denied|not allowed/i.test(msg)){
+      detalhe = "A permissão da câmera foi negada. Autorize a câmera nas permissões do navegador e tente novamente.";
+    }else if(nome === "NotFoundError" || /not found|no camera|device/i.test(msg)){
+      detalhe = "Nenhuma câmera disponível foi encontrada neste dispositivo.";
+    }else if(nome === "NotReadableError" || /not readable|in use|busy/i.test(msg)){
+      detalhe = "A câmera está sendo usada por outro aplicativo ou não pôde ser acessada. Feche outros aplicativos que estejam usando a câmera e tente novamente.";
+    }else if(nome === "OverconstrainedError" || /constraint/i.test(msg)){
+      detalhe = "A câmera traseira solicitada não pôde ser usada. Tente novamente para selecionar uma câmera disponível.";
+    }else if(nome === "SecurityError" || /secure context|security/i.test(msg)){
+      detalhe = "O navegador bloqueou o acesso à câmera por segurança. Verifique se o endereço está sendo acessado por HTTPS.";
+    }
+    scanStatus.innerHTML = "<strong>"+detalhe+"</strong><br><span class=\"small\">"+(msg ? "Detalhe: "+esc(msg) : "")+"</span>";
   }
 }
 
@@ -1185,33 +1199,9 @@ prepararAuth();
 </script>
 
 <script>
-/* Atualização online automática — não é necessário reinstalar o app. */
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', async () => {
-    const tinhaControlador = !!navigator.serviceWorker.controller;
-    try {
-      const reg = await navigator.serviceWorker.register('./sw.js', {updateViaCache:'none'});
-      await reg.update();
-      if (reg.waiting) reg.waiting.postMessage({type:'SKIP_WAITING'});
-      reg.addEventListener('updatefound', () => {
-        const novo = reg.installing;
-        if (!novo) return;
-        novo.addEventListener('statechange', () => {
-          if (novo.state === 'installed' && reg.waiting) novo && reg.waiting.postMessage({type:'SKIP_WAITING'});
-        });
-      });
-    } catch (_) {}
-    navigator.serviceWorker.addEventListener('controllerchange', () => {
-      if (!window.__recarregandoAtualizacao && tinhaControlador) {
-        window.__recarregandoAtualizacao = true;
-        window.location.reload();
-      }
-    });
-  });
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') {
-      navigator.serviceWorker.getRegistration('./').then(reg => reg && reg.update()).catch(() => {});
-    }
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
   });
 }
 </script>
